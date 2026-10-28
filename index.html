@@ -1,0 +1,909 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Richard's Track Passport</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f4;
+      color: #20352c;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+
+    header {
+      background: #0306e3;
+      color: white;
+      padding: 28px 24px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    header p { margin: 0; line-height: 1.5; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    .stat-card p {
+      margin: 0 0 8px;
+      color: #617168;
+      font-size: 14px;
+    }
+
+    .stat-card strong { font-size: 30px; }
+
+    .track-card {
+      background: white;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #e1e8e2;
+    }
+
+    .track-card h3 { margin: 0 0 8px; }
+
+    .track-info {
+      color: #617168;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0 0 14px;
+    }
+
+    .track-info span { display: block; }
+
+    .status {
+      display: inline-block;
+      background: #edf1ee;
+      color: #46574c;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+
+    .status.visited {
+      background: #d9f1df;
+      color: #175a32;
+    }
+
+    button {
+      margin: 6px 6px 0 0;
+      padding: 9px 12px;
+      border: none;
+      border-radius: 8px;
+      background: #246b50;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:hover { background: #194d39; }
+
+    button.secondary {
+      background: #e8ece9;
+      color: #20352c;
+    }
+
+    button.danger { background: #a83232; }
+    button.danger:hover { background: #7d2020; }
+
+    .run-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #e1e8e2;
+    }
+
+    .run-section h4 { margin: 0 0 12px; }
+
+    .run-summary {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .run-summary strong {
+      display: block;
+      font-size: 22px;
+      margin-top: 4px;
+    }
+
+    .small-label {
+      display: block;
+      color: #617168;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #cbd5ce;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-top: 5px;
+      background: white;
+    }
+
+    .record {
+      border-top: 1px solid #e1e8e2;
+      margin-top: 14px;
+      padding-top: 12px;
+    }
+
+    .record-details {
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .edit-panel {
+      background: #f4f6f4;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    .empty-records {
+      color: #617168;
+      font-size: 13px;
+    }
+
+    footer {
+      margin-top: 28px;
+      color: #617168;
+      font-size: 12px;
+      text-align: center;
+    }
+    
+   .filter-section {
+    margin-bottom: 18px;
+    }
+
+   .filter-section label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #617168;
+   }
+
+   .filter-section select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5ce;
+    border-radius: 8px;
+    background: white;
+    font-size: 16px;
+   }
+
+#track-search {
+  margin-bottom: 12px;
+}
+
+.track-details {
+  display: none;
+}
+
+.location-section {
+  margin-bottom: 20px;
+}
+
+.location-section h4 {
+  margin: 0 0 10px;
+}
+
+.location-section p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+  </style>
+</head>
+
+
+<body>
+  <main class="container">
+    <header>
+      <h1>Richard's Track Passport</h1>
+      <p>Discover tracks. Collect visits. Explore more.</p>
+    </header>
+
+    <section class="stats">
+      <div class="stat-card">
+        <p>Tracks in directory</p>
+        <strong id="track-count">5</strong>
+      </div>
+      <div class="stat-card">
+        <p>Tracks visited</p>
+        <strong id="visited-count">0</strong>
+      </div>
+    </section>
+
+    <section>
+      <h2>Explore tracks</h2>
+
+      
+<div class="filter-section">
+  <label for="track-search">Search tracks</label>
+  <input
+    id="track-search"
+    type="search"
+    placeholder="Enter a track name..."
+  >
+
+  <label for="surface-filter">Filter by surface</label>
+  <select id="surface-filter">
+    <option value="All">All surfaces</option>
+    <option value="Synthetic">Synthetic</option>
+    <option value="Dirt">Dirt</option>
+  </select>
+</div>
+
+
+      <article class="track-card" data-track-id="wimbledon" data-surface="Synthetic">
+        <h3>Wimbledon Park Track</h3>
+        <p class="track-info">
+          <span>400m</span>
+          <span>Surface: Synthetic</span>
+          <span>Lanes: 6 lanes, 8 lane straight</span>
+        </p>
+
+
+        <div class="location-section">
+          
+           <h4>Location</h4>
+
+           <p>Wimbledon Park Road, London SW19 6PE</p>
+
+           <iframe
+             title="Wimbledon Park Track location map"
+             src="https://www.openstreetmap.org/export/embed.html?bbox=-0.212%2C51.4365%2C-0.204%2C51.4401&layer=mapnik&marker=51.43785307099819%2C-0.2079979077899185"
+             width="100%"
+             height="220"
+             style="border: 0; border-radius: 8px;"
+             loading="lazy">
+           </iframe>
+
+          <p>
+             <a
+               href="https://www.openstreetmap.org/?mlat=51.43785307099819&mlon=-0.2079979077899185#map=17/51.43785307099819/-0.2079979077899185"
+              target="_blank"
+              rel="noopener noreferrer">
+              Open in OpenStreetMap
+             </a>
+            </p>
+        </div>
+
+        <span class="status">Not visited</span><br>
+        <button onclick="toggleVisit(this)">Mark as visited</button>
+        <button
+          type="button"
+          class="secondary"
+          onclick="toggleDetails(this)"
+        >
+          Show details
+        </button>
+
+        <div class="track-details">
+
+        <div class="run-section">
+          <h4>Running log</h4>
+          <div class="run-summary">
+            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
+            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
+          </div>
+          <label class="small-label">Distance (km)
+            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
+          </label>
+          <label class="small-label">Run date
+            <input class="date-input" type="date">
+          </label>
+          <button onclick="recordDistance(this)">Record run</button>
+          <p class="empty-records">No running records yet.</p>
+          <div class="run-records"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="track-card" data-track-id="battersea" data-surface="Synthetic">
+        <h3>Battersea Park Millennium Arena</h3>
+        <p class="track-info">
+          <span>400m</span>
+          <span>Surface: Synthetic</span>
+          <span>Lanes: 8 lanes</span>
+        </p>
+
+        <div class="location-section">
+          
+           <h4>Location</h4>
+
+           <p>Carriage Dr E, London SW11 4NJ</p>
+
+           <iframe
+             title="Battersea Park Millennium Arena location map"
+             src="https://www.openstreetmap.org/export/embed.html?bbox=-0.155016%2C51.478706%2C-0.147016%2C51.482706&layer=mapnik&marker=51.48070643683939%2C-0.15101614334039884"
+             width="100%"
+             height="220"
+             style="border: 0; border-radius: 8px;"
+             loading="lazy">
+           </iframe>
+
+          <p>
+             <a
+               href="https://www.openstreetmap.org/?mlat=51.48070643683939&mlon=-0.15101614334039884#map=17/51.48070643683939/-0.15101614334039884"
+              target="_blank"
+              rel="noopener noreferrer">
+              Open in OpenStreetMap
+             </a>
+            </p>
+        </div>
+
+        <span class="status">Not visited</span><br>
+        <button onclick="toggleVisit(this)">Mark as visited</button>
+        <button
+           type="button"
+           class="secondary"
+           onclick="toggleDetails(this)"
+          >
+          Show details
+        </button>
+        
+        <div class="track-details">
+        <div class="run-section">
+          <h4>Running log</h4>
+          <div class="run-summary">
+            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
+            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
+          </div>
+          <label class="small-label">Distance (km)
+            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
+          </label>
+          <label class="small-label">Run date
+            <input class="date-input" type="date">
+          </label>
+          <button onclick="recordDistance(this)">Record run</button>
+          <p class="empty-records">No running records yet.</p>
+          <div class="run-records"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="track-card" data-track-id="tooting" data-surface="Synthetic">
+        <h3>Tooting Bec Track</h3>
+        <p class="track-info">
+          <span>400m</span>
+          <span>Surface: Synthetic</span>
+          <span>Lanes: 8 lanes</span>
+        </p>
+       
+        <div class="location-section">
+          
+           <h4>Location</h4>
+
+           <p>Athletics Track, Tooting Bec Rd, London SW16 1RT</p>
+
+           <iframe
+             title="Tooting Bec Track location map"
+             src="https://www.openstreetmap.org/export/embed.html?bbox=-0.150723%2C51.428274%2C-0.142723%2C51.432274&layer=mapnik&marker=51.43027414387151%2C-0.14672254325537226"
+             width="100%"
+             height="220"
+             style="border: 0; border-radius: 8px;"
+             loading="lazy">
+           </iframe>
+
+          <p>
+             <a
+              href="https://www.openstreetmap.org/?mlat=51.43027414387151&mlon=-0.14672254325537226#map=17/51.43027414387151/-0.14672254325537226"
+              target="_blank"
+              rel="noopener noreferrer">
+              Open in OpenStreetMap
+             </a>
+            </p>
+        </div>
+
+         <span class="status">Not visited</span><br>
+        <button onclick="toggleVisit(this)">Mark as visited</button>
+        <button
+           type="button"
+           class="secondary"
+           onclick="toggleDetails(this)"
+          >
+          Show details
+        </button>
+        
+        <div class="track-details">
+        <div class="run-section">
+          <h4>Running log</h4>
+          <div class="run-summary">
+            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
+            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
+          </div>
+          <label class="small-label">Distance (km)
+            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
+          </label>
+          <label class="small-label">Run date
+            <input class="date-input" type="date">
+          </label>
+          <button onclick="recordDistance(this)">Record run</button>
+          <p class="empty-records">No running records yet.</p>
+          <div class="run-records"></div>
+          </div>
+        </div>
+      </article>
+            
+      <article class="track-card" data-track-id="ladywell" data-surface="Synthetic">
+        <h3>Ladywell Arena</h3>
+        <p class="track-info">
+          <span>400m</span>
+          <span>Surface: Synthetic</span>
+          <span>Lanes: 6 lanes, 8 lane straight</span>
+        </p>
+   
+        <div class="location-section">
+          
+           <h4>Location</h4>
+
+           <p>Silvermere Rd, London SE6 4QX</p>
+
+           <iframe
+             title="Ladywell Arena location map"
+             src="https://www.openstreetmap.org/export/embed.html?bbox=-0.024848%2C51.449333%2C-0.016848%2C51.453333&layer=mapnik&marker=51.4513334403169%2C-0.020847526053579243"
+             width="100%"
+             height="220"
+             style="border: 0; border-radius: 8px;"
+             loading="lazy">
+           </iframe>
+
+          <p>
+             <a
+              href="https://www.openstreetmap.org/?mlat=51.4513334403169&mlon=-0.020847526053579243#map=17/51.4513334403169/-0.020847526053579243"
+              target="_blank"
+              rel="noopener noreferrer">
+              Open in OpenStreetMap
+             </a>
+            </p>
+        </div>
+
+        <span class="status">Not visited</span><br>
+        <button onclick="toggleVisit(this)">Mark as visited</button>
+        <button
+           type="button"
+           class="secondary"
+           onclick="toggleDetails(this)"
+          >
+          Show details
+        </button>
+
+        <div class="track-details">
+        <div class="run-section">
+          <h4>Running log</h4>
+          <div class="run-summary">
+            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
+            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
+          </div>
+          <label class="small-label">Distance (km)
+            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
+          </label>
+          <label class="small-label">Run date
+            <input class="date-input" type="date">
+          </label>
+          <button onclick="recordDistance(this)">Record run</button>
+          <p class="empty-records">No running records yet.</p>
+          <div class="run-records"></div>
+        </div>
+        </div>
+      </article>
+
+      <article class="track-card" data-track-id="canons" data-surface="Dirt">
+        <h3>Canons House and Grounds</h3>
+        <p class="track-info">
+          <span>321m (est)</span>
+          <span>Surface: Dirt</span>
+          <span>Lanes: N/A</span>
+        </p>
+        <div class="location-section">
+          
+           <h4>Location</h4>
+
+           <p>82 Langdale Ave, Mitcham CR4 4AF</p>
+
+           <iframe
+             title="Canons House and Grounds location map"
+             src="https://www.openstreetmap.org/export/embed.html?bbox=-0.166893%2C51.400071%2C-0.158893%2C51.404071&layer=mapnik&marker=51.40207051301503%2C-0.16289298702031993"
+             width="100%"
+             height="220"
+             style="border: 0; border-radius: 8px;"
+             loading="lazy">
+           </iframe>
+
+          <p>
+             <a
+              href="https://www.openstreetmap.org/?mlat=51.40207051301503&mlon=-0.16289298702031993#map=17/51.40207051301503/-0.16289298702031993"
+              target="_blank"
+              rel="noopener noreferrer">
+              Open in OpenStreetMap
+             </a>
+            </p>
+        </div>
+        <span class="status">Not visited</span><br>
+        <button onclick="toggleVisit(this)">Mark as visited</button>
+        <button
+           type="button"
+           class="secondary"
+           onclick="toggleDetails(this)"
+          >
+          Show details
+        </button>
+
+        <div class="track-details">
+
+        <div class="run-section">
+          <h4>Running log</h4>
+          <div class="run-summary">
+            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
+            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
+          </div>
+          <label class="small-label">Distance (km)
+            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
+          </label>
+          <label class="small-label">Run date
+            <input class="date-input" type="date">
+          </label>
+          <button onclick="recordDistance(this)">Record run</button>
+          <p class="empty-records">No running records yet.</p>
+          <div class="run-records"></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <footer>My Track Passport · A personal athletics track collection</footer>
+  </main>
+
+  <script>
+    function loadData(key, fallback) {
+      const saved = localStorage.getItem(key);
+      if (saved === null) return fallback;
+
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    let visitedTracks = loadData("visitedTracks", []);
+    let distanceLogs = loadData("trackDistanceLogs", {});
+
+    function todayString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function makeId() {
+      return Date.now().toString(36) +
+        Math.random().toString(36).slice(2);
+    }
+
+    function normaliseDate(value) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value || "")) {
+        return value;
+      }
+
+      const match = (value || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (match) {
+        return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+      }
+
+      return todayString();
+    }
+
+    // Keep records created in the previous lesson compatible
+    for (const trackId of Object.keys(distanceLogs)) {
+      distanceLogs[trackId] = distanceLogs[trackId].map(log => ({
+        id: log.id || makeId(),
+        metres: Math.round(Number(
+          log.metres !== undefined
+            ? log.metres
+            : (log.distanceKm || 0) * 1000
+        )),
+        date: normaliseDate(log.date)
+      }));
+    }
+
+    function saveVisits() {
+      localStorage.setItem("visitedTracks", JSON.stringify(visitedTracks));
+    }
+
+    function saveDistanceLogs() {
+      localStorage.setItem("trackDistanceLogs", JSON.stringify(distanceLogs));
+    }
+
+    function toggleVisit(button) {
+      const card = button.closest(".track-card");
+      const trackId = card.dataset.trackId;
+
+      if (visitedTracks.includes(trackId)) {
+        visitedTracks = visitedTracks.filter(id => id !== trackId);
+      } else {
+        visitedTracks.push(trackId);
+      }
+
+      saveVisits();
+      updateTrackCard(card);
+      updateCount();
+    }
+
+    function updateTrackCard(card) {
+      const trackId = card.dataset.trackId;
+      const status = card.querySelector(".status");
+      const button = card.querySelector('button[onclick="toggleVisit(this)"]');
+
+      if (visitedTracks.includes(trackId)) {
+        status.textContent = "Visited";
+        status.classList.add("visited");
+        button.textContent = "Undo check-in";
+      } else {
+        status.textContent = "Not visited";
+        status.classList.remove("visited");
+        button.textContent = "Mark as visited";
+      }
+    }
+
+    function updateCount() {
+      const totalTracks = document.querySelectorAll(".track-card").length;
+
+      document.getElementById("track-count").textContent = totalTracks;
+      document.getElementById("visited-count").textContent = visitedTracks.length;
+    }
+
+    
+function filterTracks() {
+  const selectedSurface =
+    document.getElementById("surface-filter").value;
+
+  const searchTerm =
+    document.getElementById("track-search").value.trim().toLowerCase();
+
+  document.querySelectorAll(".track-card").forEach(card => {
+    const trackSurface = card.dataset.surface;
+    const trackName = card.querySelector("h3").textContent.toLowerCase();
+
+    const matchesSurface =
+      selectedSurface === "All" ||
+      trackSurface === selectedSurface;
+
+    const matchesSearch =
+      trackName.includes(searchTerm);
+
+    if (matchesSurface && matchesSearch) {
+      card.style.display = "";
+    } else {
+      card.style.display = "none";
+    }
+  });
+}
+
+
+    function recordDistance(button) {
+      const card = button.closest(".track-card");
+      const trackId = card.dataset.trackId;
+      const input = card.querySelector(".distance-input");
+      const dateInput = card.querySelector(".date-input");
+      const distanceKm = Number(input.value);
+      const date = dateInput.value;
+
+      if (input.value.trim() === "" ||
+          !Number.isFinite(distanceKm) ||
+          distanceKm <= 0) {
+        alert("Please enter a distance greater than 0 km.");
+        return;
+      }
+
+      if (!date) {
+        alert("Please select a run date.");
+        return;
+      }
+
+      if (!distanceLogs[trackId]) distanceLogs[trackId] = [];
+
+      distanceLogs[trackId].push({
+        id: makeId(),
+        metres: Math.round(distanceKm * 1000),
+        date: date
+      });
+
+      saveDistanceLogs();
+      updateDistanceDisplay(card);
+      input.value = "";
+    }
+
+    function addText(parent, tag, text, className) {
+      const element = document.createElement(tag);
+      element.textContent = text;
+      if (className) element.className = className;
+      parent.appendChild(element);
+      return element;
+    }
+
+    function updateDistanceDisplay(card) {
+      const trackId = card.dataset.trackId;
+      const logs = distanceLogs[trackId] || [];
+      const totalMetres = logs.reduce((sum, log) => sum + log.metres, 0);
+
+      card.querySelector(".total-distance").textContent =
+        (totalMetres / 1000).toLocaleString(undefined, {
+          maximumFractionDigits: 3
+        }) + " km";
+
+      card.querySelector(".run-count").textContent = logs.length;
+
+      const list = card.querySelector(".run-records");
+      const emptyMessage = card.querySelector(".empty-records");
+      list.replaceChildren();
+
+      const recentLogs = [...logs]
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      recentLogs.forEach(log => {
+        const record = document.createElement("div");
+        record.className = "record";
+
+        addText(
+          record,
+          "div",
+          `${log.date} · ${(log.metres / 1000).toLocaleString(undefined, { maximumFractionDigits: 3 })} km`,
+          "record-details"
+        );
+
+        const actions = document.createElement("div");
+        actions.className = "record-actions";
+
+        const editButton = addText(actions, "button", "Edit");
+        editButton.type = "button";
+        editButton.addEventListener("click", () => showEditForm(card, log.id));
+
+        const deleteButton = addText(actions, "button", "Delete", "danger");
+        deleteButton.type = "button";
+        deleteButton.addEventListener("click", () => deleteRecord(card, log.id));
+
+        record.appendChild(actions);
+        list.appendChild(record);
+      });
+
+      emptyMessage.hidden = logs.length > 0;
+    }
+
+    function showEditForm(card, recordId) {
+      const trackId = card.dataset.trackId;
+      const log = (distanceLogs[trackId] || [])
+        .find(item => item.id === recordId);
+
+      if (!log) return;
+
+      const list = card.querySelector(".run-records");
+      const oldForm = list.querySelector(".edit-panel");
+      if (oldForm) oldForm.remove();
+
+      const panel = document.createElement("div");
+      panel.className = "edit-panel";
+      addText(panel, "strong", "Edit running record");
+
+      const dateLabel = addText(panel, "label", "Run date", "small-label");
+      const dateInput = document.createElement("input");
+      dateInput.type = "date";
+      dateInput.value = log.date;
+      dateLabel.appendChild(dateInput);
+
+      const distanceLabel = addText(panel, "label", "Distance (km)", "small-label");
+      const distanceInput = document.createElement("input");
+      distanceInput.type = "number";
+      distanceInput.min = "0.001";
+      distanceInput.step = "any";
+      distanceInput.value = (log.metres / 1000).toString();
+      distanceLabel.appendChild(distanceInput);
+
+      const saveButton = addText(panel, "button", "Save changes");
+      saveButton.type = "button";
+      saveButton.addEventListener("click", () => {
+        const km = Number(distanceInput.value);
+
+        if (distanceInput.value.trim() === "" ||
+            !Number.isFinite(km) || km <= 0) {
+          alert("Please enter a distance greater than 0 km.");
+          return;
+        }
+
+        if (!dateInput.value) {
+          alert("Please select a run date.");
+          return;
+        }
+
+        log.metres = Math.round(km * 1000);
+        log.date = dateInput.value;
+
+        saveDistanceLogs();
+        updateDistanceDisplay(card);
+      });
+
+      const cancelButton = addText(panel, "button", "Cancel", "secondary");
+      cancelButton.type = "button";
+      cancelButton.addEventListener("click", () => panel.remove());
+
+      list.prepend(panel);
+    }
+
+    function deleteRecord(card, recordId) {
+      if (!confirm("Delete this running record? This cannot be undone.")) {
+        return;
+      }
+
+      const trackId = card.dataset.trackId;
+      distanceLogs[trackId] = (distanceLogs[trackId] || [])
+        .filter(log => log.id !== recordId);
+
+      saveDistanceLogs();
+      updateDistanceDisplay(card);
+    }
+
+    document.querySelectorAll(".track-card").forEach(card => {
+      updateTrackCard(card);
+      updateDistanceDisplay(card);
+      card.querySelector(".date-input").value = todayString();
+    });
+
+
+    document.getElementById("surface-filter")
+      .addEventListener("change", filterTracks);
+
+    document.getElementById("track-search")
+       .addEventListener("input", filterTracks);
+
+    updateCount();
+    saveDistanceLogs();
+    
+    function toggleDetails(button) {
+      const card = button.closest(".track-card");
+      const details = card.querySelector(".track-details");
+
+      if (details.style.display === "block") {
+        details.style.display = "none";
+        button.textContent = "Show details";
+        } else {
+      details.style.display = "block";
+     button.textContent = "Hide details";
+         }     
+       }
+
+  </script>
+</body>
+</html>
