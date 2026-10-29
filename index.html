@@ -1,3 +1,11 @@
+<!--
+Richard's Track Passport — version history
+index: Original version; basic track visits and running logs.
+index_v1: Unified visit-record data model.
+index_v2: Adds training, competition and spectating records.
+index_v3: Expands competition recording with Track/Field categories and event-specific options.
+index_v4: Two Pages: Track Directory and Visit History. 
+-->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -73,6 +81,21 @@
       font-size: 14px;
       line-height: 1.6;
       margin: 0 0 14px;
+    }
+
+    .track-stats {
+     display: none;
+     margin: 12px 0;
+     padding: 12px;
+     background: #f3f7f4;
+     border-radius: 8px;
+     font-size: 14px;
+     line-height: 1.8;
+     white-space: pre-line;
+    }
+
+    .track-stats strong {
+      color: #243b2d;
     }
 
     .track-info span { display: block; }
@@ -223,6 +246,125 @@
   line-height: 1.6;
 }
 
+
+    .visit-form-container { display: none; margin: 16px 0; }
+    .visit-form { background: #f4f6f4; border-radius: 10px; padding: 14px; }
+    .visit-form h4 { margin: 0 0 12px; }
+    .visit-form label { display: block; margin-top: 10px; font-size: 14px; color: #46574c; }
+    .visit-form input, .visit-form select { margin-top: 5px; }
+    .visit-form .form-actions { margin-top: 12px; }
+    .event-row { border: 1px solid #d8e0da; padding: 10px; border-radius: 8px; margin-top: 10px; }
+    .track-records-panel { margin-top: 16px; padding-top: 14px; border-top: 1px solid #e1e8e2; }
+    .track-records-panel h4 { margin: 0 0 10px; }
+    .track-history-item { border-top: 1px solid #e1e8e2; padding: 10px 0; }
+    .track-history-item:first-child { border-top: 0; }
+    .track-history-item p { margin: 4px 0; font-size: 14px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+    .track-history-empty { color: #617168; font-size: 13px; }
+    .history-section { margin-top: 28px; }
+    .history-record { background: white; border: 1px solid #e1e8e2; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+    .history-record h4 { margin: 0 0 6px; }
+    .history-meta { color: #617168; font-size: 13px; line-height: 1.5; }
+    .history-actions { margin-top: 8px; }
+    .empty-history { color: #617168; font-size: 14px; }
+    .track-details .run-section { display: none !important; }
+ /* Fixed bottom navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: white;
+  border-top: 1px solid #e1e8e2;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+}
+
+.bottom-nav .nav-button {
+  flex: 1;
+  max-width: 220px;
+  margin: 0;
+  padding: 12px 10px;
+  font-weight: bold;
+}
+
+.bottom-nav .nav-button.active {
+  background: #0306e3;
+}
+
+/* Leave room for the fixed navigation */
+body {
+  padding-bottom: 100px;
+}
+
+/* Page switching */
+.page-panel {
+  display: none;
+}
+
+.page-panel.active-page {
+  display: block;
+}
+/* Keep the statistics cards in a two-column grid */
+.stats.page-panel.active-page {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* Consistent spacing between page sections */
+.records-page {
+  margin-bottom: 28px;
+}
+
+.directory-page {
+  margin-bottom: 28px;
+}
+.history-edit-container {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e1e8e2;
+}
+
+/* Minimal text-style action buttons in both pages */
+.history-actions button,
+.track-history-item button {
+  background: transparent;
+  color: #617168;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: normal;
+  line-height: 1.5;
+}
+
+/* Remove the red emphasis from Delete visit */
+.history-actions button.danger,
+.track-history-item button.danger {
+  background: transparent;
+  color: #617168;
+}
+
+/* Separate Edit and Delete with a vertical bar */
+.history-actions button.danger::before,
+.track-history-item button.danger::before {
+  content: "|";
+  color: #a0aaa3;
+  margin: 0 8px;
+}
+
+/* Subtle hover effect */
+.history-actions button:hover,
+.track-history-item button:hover {
+  background: transparent;
+  color: #20352c;
+  text-decoration: underline;
+}
   </style>
 </head>
 
@@ -234,21 +376,41 @@
       <p>Discover tracks. Collect visits. Explore more.</p>
     </header>
 
-    <section class="stats">
-      <div class="stat-card">
-        <p>Tracks in directory</p>
-        <strong id="track-count">5</strong>
-      </div>
-      <div class="stat-card">
-        <p>Tracks visited</p>
-        <strong id="visited-count">0</strong>
-      </div>
-    </section>
 
-    <section>
-      <h2>Explore tracks</h2>
+<section class="stats page-panel records-page">
+  <div class="stat-card">
+    <p>Tracks in directory</p>
+    <strong id="track-count">5</strong>
+  </div>
 
-      
+  <div class="stat-card">
+    <p>Tracks visited</p>
+    <strong id="visited-count">0</strong>
+  </div>
+
+  <div class="stat-card">
+    <p>Total spectating visits</p>
+    <strong id="total-spectating">0</strong>
+  </div>
+
+  <div class="stat-card">
+    <p>Total distance on track</p>
+    <strong id="total-distance">0 km</strong>
+  </div>
+
+  <div class="stat-card">
+    <p>Competition distance</p>
+    <strong id="total-competition-distance">0 km</strong>
+  </div>
+
+  <div class="stat-card">
+    <p>Training distance (including warm-ups)</p>
+    <strong id="total-training-distance">0 km</strong>
+  </div>
+</section>
+
+
+<section class="page-panel directory-page"> 
 <div class="filter-section">
   <label for="track-search">Search tracks</label>
   <input
@@ -301,33 +463,15 @@
         </div>
 
         <span class="status">Not visited</span><br>
-        <button onclick="toggleVisit(this)">Mark as visited</button>
-        <button
-          type="button"
-          class="secondary"
-          onclick="toggleDetails(this)"
-        >
-          Show details
-        </button>
+        <button type="button" onclick="openVisitForm(this)">Add visit</button>
+        <button type="button" class="secondary track-history-toggle" onclick="toggleTrackHistory(this)">View records</button>
 
         <div class="track-details">
-
-        <div class="run-section">
-          <h4>Running log</h4>
-          <div class="run-summary">
-            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
-            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
-          </div>
-          <label class="small-label">Distance (km)
-            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
-          </label>
-          <label class="small-label">Run date
-            <input class="date-input" type="date">
-          </label>
-          <button onclick="recordDistance(this)">Record run</button>
-          <p class="empty-records">No running records yet.</p>
-          <div class="run-records"></div>
-          </div>
+          <div class="visit-form-container"></div>
+          <section class="track-records-panel">
+            <h4>Previous records at this track</h4>
+            <div class="track-history-list"></div>
+          </section>
         </div>
       </article>
 
@@ -365,32 +509,15 @@
         </div>
 
         <span class="status">Not visited</span><br>
-        <button onclick="toggleVisit(this)">Mark as visited</button>
-        <button
-           type="button"
-           class="secondary"
-           onclick="toggleDetails(this)"
-          >
-          Show details
-        </button>
+        <button type="button" onclick="openVisitForm(this)">Add visit</button>
+        <button type="button" class="secondary track-history-toggle" onclick="toggleTrackHistory(this)">View records</button>
         
         <div class="track-details">
-        <div class="run-section">
-          <h4>Running log</h4>
-          <div class="run-summary">
-            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
-            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
-          </div>
-          <label class="small-label">Distance (km)
-            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
-          </label>
-          <label class="small-label">Run date
-            <input class="date-input" type="date">
-          </label>
-          <button onclick="recordDistance(this)">Record run</button>
-          <p class="empty-records">No running records yet.</p>
-          <div class="run-records"></div>
-          </div>
+          <div class="visit-form-container"></div>
+          <section class="track-records-panel">
+            <h4>Previous records at this track</h4>
+            <div class="track-history-list"></div>
+          </section>
         </div>
       </article>
 
@@ -428,32 +555,15 @@
         </div>
 
          <span class="status">Not visited</span><br>
-        <button onclick="toggleVisit(this)">Mark as visited</button>
-        <button
-           type="button"
-           class="secondary"
-           onclick="toggleDetails(this)"
-          >
-          Show details
-        </button>
+        <button type="button" onclick="openVisitForm(this)">Add visit</button>
+        <button type="button" class="secondary track-history-toggle" onclick="toggleTrackHistory(this)">View records</button>
         
         <div class="track-details">
-        <div class="run-section">
-          <h4>Running log</h4>
-          <div class="run-summary">
-            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
-            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
-          </div>
-          <label class="small-label">Distance (km)
-            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
-          </label>
-          <label class="small-label">Run date
-            <input class="date-input" type="date">
-          </label>
-          <button onclick="recordDistance(this)">Record run</button>
-          <p class="empty-records">No running records yet.</p>
-          <div class="run-records"></div>
-          </div>
+          <div class="visit-form-container"></div>
+          <section class="track-records-panel">
+            <h4>Previous records at this track</h4>
+            <div class="track-history-list"></div>
+          </section>
         </div>
       </article>
             
@@ -491,32 +601,15 @@
         </div>
 
         <span class="status">Not visited</span><br>
-        <button onclick="toggleVisit(this)">Mark as visited</button>
-        <button
-           type="button"
-           class="secondary"
-           onclick="toggleDetails(this)"
-          >
-          Show details
-        </button>
+        <button type="button" onclick="openVisitForm(this)">Add visit</button>
+        <button type="button" class="secondary track-history-toggle" onclick="toggleTrackHistory(this)">View records</button>
 
         <div class="track-details">
-        <div class="run-section">
-          <h4>Running log</h4>
-          <div class="run-summary">
-            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
-            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
-          </div>
-          <label class="small-label">Distance (km)
-            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
-          </label>
-          <label class="small-label">Run date
-            <input class="date-input" type="date">
-          </label>
-          <button onclick="recordDistance(this)">Record run</button>
-          <p class="empty-records">No running records yet.</p>
-          <div class="run-records"></div>
-        </div>
+          <div class="visit-form-container"></div>
+          <section class="track-records-panel">
+            <h4>Previous records at this track</h4>
+            <div class="track-history-list"></div>
+          </section>
         </div>
       </article>
 
@@ -552,358 +645,830 @@
             </p>
         </div>
         <span class="status">Not visited</span><br>
-        <button onclick="toggleVisit(this)">Mark as visited</button>
-        <button
-           type="button"
-           class="secondary"
-           onclick="toggleDetails(this)"
-          >
-          Show details
-        </button>
+        <button type="button" onclick="openVisitForm(this)">Add visit</button>
+        <button type="button" class="secondary track-history-toggle" onclick="toggleTrackHistory(this)">View records</button>
 
         <div class="track-details">
-
-        <div class="run-section">
-          <h4>Running log</h4>
-          <div class="run-summary">
-            <div><span class="small-label">Total distance</span><strong class="total-distance">0 km</strong></div>
-            <div><span class="small-label">Number of runs</span><strong class="run-count">0</strong></div>
-          </div>
-          <label class="small-label">Distance (km)
-            <input class="distance-input" type="number" min="0.001" step="any" placeholder="e.g. 4.25">
-          </label>
-          <label class="small-label">Run date
-            <input class="date-input" type="date">
-          </label>
-          <button onclick="recordDistance(this)">Record run</button>
-          <p class="empty-records">No running records yet.</p>
-          <div class="run-records"></div>
-          </div>
+          <div class="visit-form-container"></div>
+          <section class="track-records-panel">
+            <h4>Previous records at this track</h4>
+            <div class="track-history-list"></div>
+          </section>
         </div>
       </article>
     </section>
+    </section>    
+
+    <section id="visit-history-section" class="history-section page-panel records-page">
+      <h2>Visit history</h2>
+      <div class="filter-section">
+        <label for="history-type-filter">Filter by visit type</label>
+        <select id="history-type-filter">
+          <option value="all">All visit types</option>
+          <option value="training">Training</option>
+          <option value="competition">Competition</option>
+          <option value="spectating">Spectating</option>
+        </select>
+      </div>
+      <div id="visit-history-list"></div>
+    </section>
 
     <footer>My Track Passport · A personal athletics track collection</footer>
+  
+<nav class="bottom-nav" aria-label="Main navigation">
+  <button
+    type="button"
+    class="nav-button active"
+    data-page="records"
+    onclick="showPage('records')">
+    My Records
+  </button>
+
+  <button
+    type="button"
+    class="nav-button"
+    data-page="directory"
+    onclick="showPage('directory')">
+    Track Directory
+  </button>
+</nav>
+
   </main>
 
   <script>
     function loadData(key, fallback) {
       const saved = localStorage.getItem(key);
       if (saved === null) return fallback;
-
-      try {
-        return JSON.parse(saved);
-      } catch (error) {
-        return fallback;
-      }
-    }
-
-    let visitedTracks = loadData("visitedTracks", []);
-    let distanceLogs = loadData("trackDistanceLogs", {});
-
-    function todayString() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
+      try { return JSON.parse(saved); } catch (error) { return fallback; }
     }
 
     function makeId() {
-      return Date.now().toString(36) +
-        Math.random().toString(36).slice(2);
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
     }
 
-    function normaliseDate(value) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(value || "")) {
-        return value;
-      }
+    function todayString() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
 
+    function normaliseLegacyDate(value) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return value;
       const match = (value || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (match) {
-        return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+      if (match) return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+      return null;
+    }
+
+    function createVisitRecord(trackId, type, fields = {}) {
+      return { id: makeId(), trackId, type, date: null, createdAt: new Date().toISOString(), ...fields };
+    }
+
+    // Migrate older running logs only. Old manual check-ins are no longer supported.
+    function migrateLegacyData() {
+      const oldDistanceLogs = loadData("trackDistanceLogs", {});
+      const migrated = [];
+      for (const trackId of Object.keys(oldDistanceLogs)) {
+        const logs = Array.isArray(oldDistanceLogs[trackId]) ? oldDistanceLogs[trackId] : [];
+        for (const log of logs) {
+          const metres = Math.round(Number(
+            log.metres !== undefined ? log.metres : (log.distanceKm || 0) * 1000
+          ));
+          if (!Number.isFinite(metres) || metres <= 0) continue;
+          migrated.push({
+            id: log.id || makeId(),
+            trackId,
+            type: "training",
+            date: normaliseLegacyDate(log.date),
+            createdAt: new Date().toISOString(),
+            distanceMetres: metres,
+            source: "legacy_running_log"
+          });
+        }
       }
-
-      return todayString();
+      localStorage.setItem("visitRecords", JSON.stringify(migrated));
+      return migrated;
     }
 
-    // Keep records created in the previous lesson compatible
-    for (const trackId of Object.keys(distanceLogs)) {
-      distanceLogs[trackId] = distanceLogs[trackId].map(log => ({
-        id: log.id || makeId(),
-        metres: Math.round(Number(
-          log.metres !== undefined
-            ? log.metres
-            : (log.distanceKm || 0) * 1000
-        )),
-        date: normaliseDate(log.date)
-      }));
+    const savedVisitRecords = loadData("visitRecords", null);
+    let visitRecords = Array.isArray(savedVisitRecords) ? savedVisitRecords : [];
+    // Remove obsolete  entries from the unified records.
+    visitRecords = visitRecords.filter(record => record && record.type !== "");
+    function saveVisitRecords() { localStorage.setItem("visitRecords", JSON.stringify(visitRecords)); }
+    function getTrackVisits(trackId) { return visitRecords.filter(record => record.trackId === trackId); }
+    function getTrainingRecords(trackId) { return visitRecords.filter(record => record.trackId === trackId && record.type === "training"); }
+
+    const trackNameById = {};
+    document.querySelectorAll(".track-card").forEach(card => { trackNameById[card.dataset.trackId] = card.querySelector("h3").textContent; });
+
+function updateTrackCard(card) {
+  const trackId = card.dataset.trackId;
+  const status = card.querySelector(".status");
+  const visits = getTrackVisits(trackId);
+
+  // Update visited status
+  status.textContent = visits.length ? "Visited" : "Not visited";
+  status.classList.toggle("visited", visits.length > 0);
+
+  // Count visits by type
+  const trainingCount = visits.filter(
+    record => record.type === "training"
+  ).length;
+
+  const spectatingCount = visits.filter(
+    record => record.type === "spectating"
+  ).length;
+
+  const competitionCount = visits.filter(
+    record => record.type === "competition"
+  ).length;
+
+  // Calculate training distance, including warm-ups
+  const trainingDistance = visits.reduce((sum, record) => {
+    if (record.type === "training") {
+      return sum + Number(record.distanceMetres || 0);
     }
 
-    function saveVisits() {
-      localStorage.setItem("visitedTracks", JSON.stringify(visitedTracks));
+    if (record.type === "competition" && record.warmupOnTrack) {
+      return sum + Number(record.warmupDistanceMetres || 0);
     }
 
-    function saveDistanceLogs() {
-      localStorage.setItem("trackDistanceLogs", JSON.stringify(distanceLogs));
-    }
+    return sum;
+  }, 0);
 
-    function toggleVisit(button) {
-      const card = button.closest(".track-card");
-      const trackId = card.dataset.trackId;
+  // Calculate competition distance, excluding warm-ups
+  const competitionDistance = visits.reduce((sum, record) => {
+    if (record.type !== "competition") return sum;
 
-      if (visitedTracks.includes(trackId)) {
-        visitedTracks = visitedTracks.filter(id => id !== trackId);
-      } else {
-        visitedTracks.push(trackId);
-      }
+    const eventDistance = Array.isArray(record.events)
+      ? record.events.reduce(
+          (eventSum, event) =>
+            eventSum + Number(event.distanceMetres || 0),
+          0
+        )
+      : 0;
 
-      saveVisits();
-      updateTrackCard(card);
-      updateCount();
-    }
+    return sum + eventDistance;
+  }, 0);
 
-    function updateTrackCard(card) {
-      const trackId = card.dataset.trackId;
-      const status = card.querySelector(".status");
-      const button = card.querySelector('button[onclick="toggleVisit(this)"]');
+  // Total running distance
+  const totalDistance = trainingDistance + competitionDistance;
 
-      if (visitedTracks.includes(trackId)) {
-        status.textContent = "Visited";
-        status.classList.add("visited");
-        button.textContent = "Undo check-in";
-      } else {
-        status.textContent = "Not visited";
-        status.classList.remove("visited");
-        button.textContent = "Mark as visited";
-      }
-    }
+  // Create the statistics area once per card
+// Create the statistics area inside track details
+let stats = card.querySelector(".track-stats");
 
-    function updateCount() {
-      const totalTracks = document.querySelectorAll(".track-card").length;
+if (!stats) {
+  stats = document.createElement("div");
+  stats.className = "track-stats";
 
-      document.getElementById("track-count").textContent = totalTracks;
-      document.getElementById("visited-count").textContent = visitedTracks.length;
-    }
+  const details = card.querySelector(".track-details");
+  if (details) {
+    details.insertAdjacentElement("afterbegin", stats);
+  }
+}
 
-    
-function filterTracks() {
-  const selectedSurface =
-    document.getElementById("surface-filter").value;
-
-  const searchTerm =
-    document.getElementById("track-search").value.trim().toLowerCase();
-
-  document.querySelectorAll(".track-card").forEach(card => {
-    const trackSurface = card.dataset.surface;
-    const trackName = card.querySelector("h3").textContent.toLowerCase();
-
-    const matchesSurface =
-      selectedSurface === "All" ||
-      trackSurface === selectedSurface;
-
-    const matchesSearch =
-      trackName.includes(searchTerm);
-
-    if (matchesSurface && matchesSearch) {
-      card.style.display = "";
-    } else {
-      card.style.display = "none";
-    }
-  });
+  // Display statistics
+  stats.textContent =
+    `Visit statistics\n` +
+    `Total visits: ${visits.length}\n` +
+    `Training: ${trainingCount} | ` +
+    `Spectating: ${spectatingCount} | ` +
+    `Competition: ${competitionCount}\n\n` +
+    `Running distance\n` +
+    `Total: ${formatDistance(totalDistance)}\n` +
+    `Training (including warm-ups): ${formatDistance(trainingDistance)}\n` +
+    `Competition: ${formatDistance(competitionDistance)}`;
 }
 
 
-    function recordDistance(button) {
-      const card = button.closest(".track-card");
-      const trackId = card.dataset.trackId;
-      const input = card.querySelector(".distance-input");
-      const dateInput = card.querySelector(".date-input");
-      const distanceKm = Number(input.value);
-      const date = dateInput.value;
+function updateCount() {
+  const cards = [...document.querySelectorAll(".track-card")];
+  const ids = new Set(cards.map(card => card.dataset.trackId));
 
-      if (input.value.trim() === "" ||
-          !Number.isFinite(distanceKm) ||
-          distanceKm <= 0) {
-        alert("Please enter a distance greater than 0 km.");
-        return;
-      }
+  // Count unique tracks visited
+  const visited = new Set(
+    visitRecords
+      .filter(record => ids.has(record.trackId))
+      .map(record => record.trackId)
+  );
 
-      if (!date) {
-        alert("Please select a run date.");
-        return;
-      }
+  // Count spectating visits
+  const spectatingCount = visitRecords.filter(
+    record => record.type === "spectating"
+  ).length;
 
-      if (!distanceLogs[trackId]) distanceLogs[trackId] = [];
+  // Calculate training distance, including competition warm-ups
+  const trainingDistance = visitRecords.reduce((sum, record) => {
+    if (record.type === "training") {
+      return sum + Number(record.distanceMetres || 0);
+    }
 
-      distanceLogs[trackId].push({
-        id: makeId(),
-        metres: Math.round(distanceKm * 1000),
-        date: date
+    if (record.type === "competition" && record.warmupOnTrack) {
+      return sum + Number(record.warmupDistanceMetres || 0);
+    }
+
+    return sum;
+  }, 0);
+
+  // Calculate competition distance, excluding warm-ups
+  const competitionDistance = visitRecords.reduce((sum, record) => {
+    if (record.type !== "competition") return sum;
+
+    const eventDistance = Array.isArray(record.events)
+      ? record.events.reduce(
+          (eventSum, event) =>
+            eventSum + Number(event.distanceMetres || 0),
+          0
+        )
+      : 0;
+
+    return sum + eventDistance;
+  }, 0);
+
+  // Total running distance on track
+  const totalDistance = trainingDistance + competitionDistance;
+
+  // Update the display
+  document.getElementById("track-count").textContent = cards.length;
+  document.getElementById("visited-count").textContent = visited.size;
+
+  document.getElementById("total-spectating").textContent =
+    spectatingCount;
+
+  document.getElementById("total-distance").textContent =
+    formatDistance(totalDistance);
+
+  document.getElementById("total-competition-distance").textContent =
+    formatDistance(competitionDistance);
+
+  document.getElementById("total-training-distance").textContent =
+    formatDistance(trainingDistance);
+}
+
+
+    function filterTracks() {
+      const selectedSurface = document.getElementById("surface-filter").value;
+      const searchTerm = document.getElementById("track-search").value.trim().toLowerCase();
+      document.querySelectorAll(".track-card").forEach(card => {
+        const matchesSurface = selectedSurface === "All" || card.dataset.surface === selectedSurface;
+        const matchesSearch = card.querySelector("h3").textContent.toLowerCase().includes(searchTerm);
+        card.style.display = matchesSurface && matchesSearch ? "" : "none";
       });
-
-      saveDistanceLogs();
-      updateDistanceDisplay(card);
-      input.value = "";
     }
 
-    function addText(parent, tag, text, className) {
-      const element = document.createElement(tag);
-      element.textContent = text;
-      if (className) element.className = className;
-      parent.appendChild(element);
-      return element;
+    function addField(parent, labelText, type, className, options = {}) {
+      const label = document.createElement("label");
+      label.textContent = labelText;
+      const input = document.createElement(type === "select" ? "select" : "input");
+      if (type !== "select") input.type = type;
+      if (className) input.className = className;
+      if (options.min !== undefined) input.min = options.min;
+      if (options.step !== undefined) input.step = options.step;
+      if (options.placeholder) input.placeholder = options.placeholder;
+      if (options.required) input.required = true;
+      if (options.value !== undefined) input.value = options.value;
+      if (type === "select") {
+        options.items.forEach(item => {
+          const option = document.createElement("option"); option.value = item.value; option.textContent = item.label; input.appendChild(option);
+        });
+      }
+      label.appendChild(input); parent.appendChild(label); return input;
     }
 
-    function updateDistanceDisplay(card) {
-      const trackId = card.dataset.trackId;
-      const logs = distanceLogs[trackId] || [];
-      const totalMetres = logs.reduce((sum, log) => sum + log.metres, 0);
+    function openVisitForm(button, recordToEdit = null, targetContainer = null) {
+      const card = recordToEdit
+        ? document.querySelector(`.track-card[data-track-id="${recordToEdit.trackId}"]`)
+        : button.closest(".track-card");
+      if (!card) return;
+     const container = targetContainer || card.querySelector(".visit-form-container");
 
-      card.querySelector(".total-distance").textContent =
-        (totalMetres / 1000).toLocaleString(undefined, {
-          maximumFractionDigits: 3
-        }) + " km";
-
-      card.querySelector(".run-count").textContent = logs.length;
-
-      const list = card.querySelector(".run-records");
-      const emptyMessage = card.querySelector(".empty-records");
-      list.replaceChildren();
-
-      const recentLogs = [...logs]
-        .sort((a, b) => b.date.localeCompare(a.date));
-
-      recentLogs.forEach(log => {
-        const record = document.createElement("div");
-        record.className = "record";
-
-        addText(
-          record,
-          "div",
-          `${log.date} · ${(log.metres / 1000).toLocaleString(undefined, { maximumFractionDigits: 3 })} km`,
-          "record-details"
-        );
-
-        const actions = document.createElement("div");
-        actions.className = "record-actions";
-
-        const editButton = addText(actions, "button", "Edit");
-        editButton.type = "button";
-        editButton.addEventListener("click", () => showEditForm(card, log.id));
-
-        const deleteButton = addText(actions, "button", "Delete", "danger");
-        deleteButton.type = "button";
-        deleteButton.addEventListener("click", () => deleteRecord(card, log.id));
-
-        record.appendChild(actions);
-        list.appendChild(record);
-      });
-
-      emptyMessage.hidden = logs.length > 0;
-    }
-
-    function showEditForm(card, recordId) {
-      const trackId = card.dataset.trackId;
-      const log = (distanceLogs[trackId] || [])
-        .find(item => item.id === recordId);
-
-      if (!log) return;
-
-      const list = card.querySelector(".run-records");
-      const oldForm = list.querySelector(".edit-panel");
-      if (oldForm) oldForm.remove();
-
-      const panel = document.createElement("div");
-      panel.className = "edit-panel";
-      addText(panel, "strong", "Edit running record");
-
-      const dateLabel = addText(panel, "label", "Run date", "small-label");
-      const dateInput = document.createElement("input");
-      dateInput.type = "date";
-      dateInput.value = log.date;
-      dateLabel.appendChild(dateInput);
-
-      const distanceLabel = addText(panel, "label", "Distance (km)", "small-label");
-      const distanceInput = document.createElement("input");
-      distanceInput.type = "number";
-      distanceInput.min = "0.001";
-      distanceInput.step = "any";
-      distanceInput.value = (log.metres / 1000).toString();
-      distanceLabel.appendChild(distanceInput);
-
-      const saveButton = addText(panel, "button", "Save changes");
-      saveButton.type = "button";
-      saveButton.addEventListener("click", () => {
-        const km = Number(distanceInput.value);
-
-        if (distanceInput.value.trim() === "" ||
-            !Number.isFinite(km) || km <= 0) {
-          alert("Please enter a distance greater than 0 km.");
-          return;
+      if (!targetContainer) {
+       card.querySelector(".track-details").style.display = "block";
+       const currentHistoryToggle = card.querySelector(".track-history-toggle");
+      if (currentHistoryToggle) currentHistoryToggle.textContent = "Hide records";
+      }
+      document.querySelectorAll(".visit-form-container").forEach(el => {
+        if (el !== container) {
+          el.style.display = "none";
+          el.replaceChildren();
+          const otherDetails = el.closest(".track-details");
+          if (otherDetails) otherDetails.style.display = "none";
         }
-
-        if (!dateInput.value) {
-          alert("Please select a run date.");
-          return;
-        }
-
-        log.metres = Math.round(km * 1000);
-        log.date = dateInput.value;
-
-        saveDistanceLogs();
-        updateDistanceDisplay(card);
       });
-
-      const cancelButton = addText(panel, "button", "Cancel", "secondary");
-      cancelButton.type = "button";
-      cancelButton.addEventListener("click", () => panel.remove());
-
-      list.prepend(panel);
-    }
-
-    function deleteRecord(card, recordId) {
-      if (!confirm("Delete this running record? This cannot be undone.")) {
+      if (container.style.display === "block" && !recordToEdit) {
+        container.style.display = "none";
+        container.replaceChildren();
+        card.querySelector(".track-details").style.display = "none";
         return;
       }
+      container.replaceChildren(); container.style.display = "block";
+      const form = document.createElement("form"); form.className = "visit-form";
+      const heading = document.createElement("h4"); heading.textContent = `${recordToEdit ? "Edit visit" : "Add visit"} · ${card.querySelector("h3").textContent}`; form.appendChild(heading);
+      const mode = addField(form, "Visit type", "select", "visit-type", {items:[
+        {value:"training",label:"Training"},{value:"competition",label:"Competition"},{value:"spectating",label:"Spectating"}
+      ]});
+      const fields = document.createElement("div"); fields.className = "mode-fields"; form.appendChild(fields);
+      const actions = document.createElement("div"); actions.className = "form-actions";
+      const save = document.createElement("button"); save.type = "submit"; save.textContent = recordToEdit ? "Update visit" : "Save visit";
+      const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "secondary"; cancel.textContent = "Cancel";
+      cancel.addEventListener("click", () => {
+        container.style.display = "none";
+        container.replaceChildren();
 
-      const trackId = card.dataset.trackId;
-      distanceLogs[trackId] = (distanceLogs[trackId] || [])
-        .filter(log => log.id !== recordId);
+        if (!targetContainer) {
+           card.querySelector(".track-details").style.display = "none";
+           const toggle = card.querySelector(".track-history-toggle");
+           if (toggle) toggle.textContent = "View records";
+        }
+      });
+      actions.append(save, cancel); form.appendChild(actions);
 
-      saveDistanceLogs();
-      updateDistanceDisplay(card);
-    }
-
-    document.querySelectorAll(".track-card").forEach(card => {
-      updateTrackCard(card);
-      updateDistanceDisplay(card);
-      card.querySelector(".date-input").value = todayString();
-    });
-
-
-    document.getElementById("surface-filter")
-      .addEventListener("change", filterTracks);
-
-    document.getElementById("track-search")
-       .addEventListener("input", filterTracks);
-
-    updateCount();
-    saveDistanceLogs();
-    
-    function toggleDetails(button) {
-      const card = button.closest(".track-card");
-      const details = card.querySelector(".track-details");
-
-      if (details.style.display === "block") {
-        details.style.display = "none";
-        button.textContent = "Show details";
+          const trackEvents = [
+            ["50m",50],["60m",60],["100m",100],["200m",200],["400m",400],["800m",800],["1000m",1000],
+            ["1500m",1500],["mile",1609.344],["2000m",2000],["3000m",3000],["two miles",3218.688],
+            ["5000m",5000],["10000m",10000],["60mH",60],["100mH",100],["110mH",110],
+            ["300mH",300],["400mH",400],["2000m SC",2000],["3000m SC",3000],
+            ["4 by 100m",100],["4 by 200m",200],["4 by 400m",400],["1 hour run",null],["Other",null]
+          ];
+          const fieldEvents = ["High jump","Long jump","Triple jump","Pole vault","Shot put","Javelin","Hammer","Discus","Other"];
+          const hurdleHeights = ["0.600 m","0.686 m","0.762 m","0.838 m","0.914 m","0.991 m","1.000 m","1.067 m"];
+          const implementWeights = {
+            "Shot put":["1 kg","2 kg","2.72 kg","3 kg","3.25 kg","3.63 kg","4 kg","5 kg","6 kg","7.26 kg"],
+            "Javelin":["300 g","400 g","500 g","600 g","700 g","800 g"],
+            "Hammer":["2 kg","3 kg","3.25 kg","3.63 kg","4 kg","5 kg","6 kg","7.26 kg"],
+            "Discus":["0.6 kg","0.75 kg","1 kg","1.25 kg","1.5 kg","1.6 kg","1.75 kg","2 kg"]
+          };
+      function renderModeFields() {
+        fields.replaceChildren();
+        addField(fields, mode.value === "training" ? "Training date" : mode.value === "competition" ? "Competition date" : "Spectating date", "date", "visit-date", {required:true, value:todayString()});
+        if (mode.value === "training") {
+          addField(fields, "Distance (km)", "number", "training-distance", {required:true,min:"0.001",step:"any",placeholder:"e.g. 4.25"});
+        } else if (mode.value === "spectating") {
+          addField(fields, "Event name", "text", "event-name", {required:true,placeholder:"e.g. South of England Championships"});
         } else {
-      details.style.display = "block";
-     button.textContent = "Hide details";
-         }     
-       }
+          addField(fields, "Competition / meeting name", "text", "event-name", {required:true,placeholder:"e.g. South of England League"});
+          const warmup = addField(fields, "Did you warm up on the track?", "select", "warmup-on-track", {items:[{value:"no",label:"No"},{value:"yes",label:"Yes"}]});
+          const warmupDistanceLabel = document.createElement("label"); warmupDistanceLabel.textContent = "Warm-up distance on track (km)";
+          const warmupDistance = document.createElement("input"); warmupDistance.type = "number"; warmupDistance.min = "0"; warmupDistance.step = "any"; warmupDistance.className = "warmup-distance"; warmupDistance.placeholder = "e.g. 2"; warmupDistance.disabled = true;
+          warmupDistanceLabel.appendChild(warmupDistance); fields.appendChild(warmupDistanceLabel);
+          warmup.addEventListener("change", () => { warmupDistance.disabled = warmup.value !== "yes"; if (warmup.value !== "yes") warmupDistance.value = ""; });
+          const eventsHeading = document.createElement("h4"); eventsHeading.textContent = "Events entered"; eventsHeading.style.marginTop = "16px"; fields.appendChild(eventsHeading);
+          const eventsList = document.createElement("div"); eventsList.className = "events-list"; fields.appendChild(eventsList);
+          const addEventButton = document.createElement("button"); addEventButton.type = "button"; addEventButton.className = "secondary"; addEventButton.textContent = "Add another event"; fields.appendChild(addEventButton);
 
+          function addEventRow() {
+            const row = document.createElement("div"); row.className = "event-row";
+            const category = addField(row, "Event type", "select", "competition-event-category", {required:true,items:[{value:"track",label:"Track"},{value:"field",label:"Field"}]});
+            const eventSelect = addField(row, "Event", "select", "competition-event-select", {required:true,items:trackEvents.map(([name])=>({value:name,label:name}))});
+            const dynamic = document.createElement("div"); dynamic.className = "event-dynamic-fields"; row.appendChild(dynamic);
+            const resultContainer = document.createElement("div"); resultContainer.className = "competition-result-container"; row.appendChild(resultContainer);
+            function renderEventOptions() {
+              const isField = category.value === "field";
+              const options = isField ? fieldEvents.map(name=>({value:name,label:name})) : trackEvents.map(([name])=>({value:name,label:name}));
+              eventSelect.replaceChildren();
+              options.forEach(item=>{const option=document.createElement("option");option.value=item.value;option.textContent=item.label;eventSelect.appendChild(option);});
+              renderDynamicFields();
+            }
+            function renderDynamicFields() {
+              dynamic.replaceChildren();
+              resultContainer.replaceChildren();
+              const name = eventSelect.value;
+          
+            if (category.value === "field") {
+            const fieldExamples = {
+              "High jump": "e.g. 1.28",
+              "Long jump": "e.g. 4.01",
+              "Triple jump": "e.g. 8.59",
+              "Pole vault": "e.g. 2.35",
+              "Shot put": "e.g. 6.11",
+              "Javelin": "e.g. 23.10",
+              "Hammer": "e.g. 21.24",
+              "Discus": "e.g. 18.21",
+              "Other": "Enter result in metres"
+           };
+
+            addField(
+            resultContainer,
+            "Result (metres; numbers only)",
+            "number",
+            "competition-result-value",
+           {
+            required: true,
+            min: "0",
+            step: "any",
+            placeholder: fieldExamples[name] || "Enter result in metres"
+           }
+             );
+
+              } else if (name === "1 hour run") {
+                addField(resultContainer, "Distance covered (metres; numbers only)", "number", "competition-result-distance", {required:true,min:"1",step:"1",placeholder:"e.g. 15200"});
+              } else {
+                const timeExamples = {
+                  "50m": "e.g. 9.09", "60m": "e.g. 10.57",
+                  "100m": "e.g. 16.79", "200m": "e.g. 35.05", "400m": "e.g. 1:18.01",
+                  "800m": "e.g. 2:59.75", "1000m": "e.g. 3:54.51", "1500m": "e.g. 6:20.04", "mile": "e.g. 6:49.66", "2000m": "e.g. 8:41.22",
+                  "3000m": "e.g. 13:48.92", "two miles": "e.g. 14:52.87", "5000m": "e.g. 23:41.02", "10000m": "e.g. 51:46.31",
+                  "60mH": "e.g. 14.39", "100mH": "e.g. 29.49", "110mH": "e.g. 25.43", "300mH": "e.g. 1:07.02", "400mH": "e.g. 1:34.14",
+                  "2000m SC": "e.g. 10:50.11", "3000m SC": "e.g. 16:44.77",
+                  "4 by 100m": "e.g. 1:08.60", "4 by 200m": "e.g. 2:22.16", "4 by 400m": "e.g. 5:29.55",
+                  "Other": "e.g. 12.45 or 4:38.89"
+                };
+                addField(resultContainer, "Result / time (enter in your usual format)", "text", "competition-result-time", {required:true,placeholder:timeExamples[name] || "Enter result"});
+              }
+              if (category.value === "track") {
+                const eventData = trackEvents.find(item=>item[0]===name);
+                if (["60mH","100mH","110mH","300mH","400mH","2000m SC","3000m SC"].includes(name)) {
+                  const isSteeplechase = name.endsWith(" SC");
+                  const heightOptions = isSteeplechase ? ["0.762 m","0.838 m","0.914 m"] : hurdleHeights;
+                  const hurdle = addField(dynamic, isSteeplechase ? "Obstacle / barrier height" : "Hurdle height", "select", "competition-hurdle-height", {required:true,items:[...heightOptions.map(value=>({value,label:value})),{value:"Custom",label:"Custom"}]});
+                  hurdle.addEventListener("change", () => {
+                    const existing = dynamic.querySelector(".competition-hurdle-height-custom-label");
+                    if (existing) existing.remove();
+                    if (hurdle.value === "Custom") {
+                      const label = document.createElement("label"); label.className = "competition-hurdle-height-custom-label"; label.textContent = "Custom height (metres; numbers only)";
+                      const input = document.createElement("input"); input.type = "number"; input.min = "0.001"; input.step = "any"; input.required = true; input.className = "competition-hurdle-height-custom"; input.placeholder = "e.g. 0.762";
+                      label.appendChild(input); dynamic.appendChild(label);
+                    }
+                  });
+                }
+                if (name === "Other") {
+                  addField(dynamic, "Custom event name", "text", "competition-custom-name", {required:true,placeholder:"Enter event name"});
+                  addField(dynamic, "Running distance to count (metres)", "number", "competition-manual-distance-metres", {required:true,min:"0",step:"1",value:"0"});
+                } else {
+                  const note = document.createElement("p"); note.className="small-label"; note.textContent = `Running distance counted automatically: ${eventData ? eventData[1] : 0} m${name.startsWith("4 by ") ? " (one leg only)" : ""}.`; dynamic.appendChild(note);
+                }
+              } else if (name === "Other") {
+                addField(dynamic, "Custom field event name", "text", "competition-custom-name", {required:true,placeholder:"Enter event name"});
+              }
+              if (category.value === "field" && implementWeights[name]) {
+                addField(dynamic, "Implement weight", "select", "competition-implement-weight", {required:true,items:implementWeights[name].map(value=>({value,label:value}))});
+              }
+            }
+            category.addEventListener("change", renderEventOptions);
+            eventSelect.addEventListener("change", renderDynamicFields);
+            const remove = document.createElement("button"); remove.type = "button"; remove.className = "secondary"; remove.textContent = "Remove event"; remove.addEventListener("click", () => { if (eventsList.children.length > 1) row.remove(); }); row.appendChild(remove);
+            eventsList.appendChild(row);
+            renderEventOptions();
+          }
+          addEventButton.addEventListener("click", addEventRow); addEventRow();
+          fields._addEventRow = addEventRow;
+        }
+      }
+      mode.addEventListener("change", renderModeFields); renderModeFields();
+
+      if (recordToEdit) {
+        mode.value = recordToEdit.type;
+        renderModeFields();
+        const dateInput = fields.querySelector(".visit-date");
+        if (dateInput) dateInput.value = recordToEdit.date || todayString();
+        if (recordToEdit.type === "training") {
+          const distanceInput = fields.querySelector(".training-distance");
+          if (distanceInput) distanceInput.value = (Number(recordToEdit.distanceMetres || 0) / 1000).toString();
+        } else if (recordToEdit.type === "spectating") {
+          const nameInput = fields.querySelector(".event-name");
+          if (nameInput) nameInput.value = recordToEdit.eventName || "";
+        } else if (recordToEdit.type === "competition") {
+          const nameInput = fields.querySelector(".event-name");
+          if (nameInput) nameInput.value = recordToEdit.eventName || "";
+          const warmup = fields.querySelector(".warmup-on-track");
+          const warmupDistance = fields.querySelector(".warmup-distance");
+          if (warmup) {
+            warmup.value = recordToEdit.warmupOnTrack ? "yes" : "no";
+            warmup.dispatchEvent(new Event("change"));
+          }
+          if (warmupDistance && recordToEdit.warmupOnTrack) warmupDistance.value = (Number(recordToEdit.warmupDistanceMetres || 0) / 1000).toString();
+          const savedEvents = Array.isArray(recordToEdit.events) ? recordToEdit.events : [];
+          const eventsList = fields.querySelector(".events-list");
+          if (savedEvents.length && eventsList && fields._addEventRow) {
+            const initialRows = [...eventsList.querySelectorAll(".event-row")];
+            for (let i = 1; i < savedEvents.length; i++) fields._addEventRow();
+            const rows = [...eventsList.querySelectorAll(".event-row")];
+            savedEvents.forEach((saved, index) => {
+              const row = rows[index];
+              if (!row) return;
+              const category = row.querySelector(".competition-event-category");
+              category.value = saved.eventCategory || "track";
+              category.dispatchEvent(new Event("change"));
+              const eventSelect = row.querySelector(".competition-event-select");
+              let selected = saved.selectedEvent;
+              if (!selected) {
+                const base = (saved.eventName || "").split(" (")[0];
+                selected = [...trackEvents, ...fieldEvents.map(name=>[name,0])].some(item=>item[0]===base) ? base : "Other";
+              }
+              eventSelect.value = selected || "Other";
+              eventSelect.dispatchEvent(new Event("change"));
+              const customNameInput = row.querySelector(".competition-custom-name");
+              if (customNameInput) {
+                let customName = saved.eventName || "";
+                customName = customName.replace(/\s+\((?:hurdle|barrier) height:.*$/, "").replace(/\s+\((?:\d+(?:\.\d+)?\s*(?:kg|g))\)$/, "");
+                if (selected === "Other") customNameInput.value = customName;
+              }
+              const resultValueInput = row.querySelector(".competition-result-value");
+              const resultDistanceInput = row.querySelector(".competition-result-distance");
+              if (resultValueInput) resultValueInput.value = saved.result ?? "";
+              if (resultDistanceInput) resultDistanceInput.value = saved.result ?? "";
+              const timeInput = row.querySelector(".competition-result-time");
+              if (timeInput && saved.result != null) timeInput.value = String(saved.result);
+              const hurdleSelect = row.querySelector(".competition-hurdle-height");
+              if (hurdleSelect && saved.hurdleHeight) {
+                const known = [...hurdleSelect.options].some(option => option.value === saved.hurdleHeight);
+                hurdleSelect.value = known ? saved.hurdleHeight : "Custom";
+                hurdleSelect.dispatchEvent(new Event("change"));
+                if (!known) {
+                  const customHeight = row.querySelector(".competition-hurdle-height-custom");
+                  if (customHeight) customHeight.value = String(saved.hurdleHeight).replace(/\s*m$/i, "");
+                }
+              }
+              const weightSelect = row.querySelector(".competition-implement-weight");
+              if (weightSelect && saved.implementWeight) weightSelect.value = saved.implementWeight;
+              const manualDistance = row.querySelector(".competition-manual-distance-metres");
+              if (manualDistance) manualDistance.value = String(saved.distanceMetres || 0);
+            });
+          }
+        }
+      }
+
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const date = fields.querySelector(".visit-date")?.value;
+        if (!date) { alert("Please select the visit date."); return; }
+        let record;
+        if (mode.value === "training") {
+          const km = Number(fields.querySelector(".training-distance").value);
+          if (!Number.isFinite(km) || km <= 0) { alert("Please enter a distance greater than 0 km."); return; }
+          record = createVisitRecord(card.dataset.trackId, "training", {date, distanceMetres:Math.round(km*1000)});
+        } else if (mode.value === "spectating") {
+          const eventName = fields.querySelector(".event-name").value.trim();
+          if (!eventName) { alert("Please enter the event name."); return; }
+          record = createVisitRecord(card.dataset.trackId, "spectating", {date, eventName});
+        } else {
+          const eventName = fields.querySelector(".event-name").value.trim();
+          const rows = [...fields.querySelectorAll(".event-row")];
+          const events = rows.map(row => {
+            const category = row.querySelector(".competition-event-category").value;
+            const selectedName = row.querySelector(".competition-event-select").value;
+            const customName = row.querySelector(".competition-custom-name")?.value.trim();
+            let result = "";
+            const fieldResultInput = row.querySelector(".competition-result-value");
+            const distanceResultInput = row.querySelector(".competition-result-distance");
+            if (fieldResultInput) {
+              result = fieldResultInput.value.trim();
+            } else if (distanceResultInput) {
+              result = distanceResultInput.value.trim();
+            } else {
+              result = row.querySelector(".competition-result-time")?.value.trim() || "";
+            }
+            const baseName = selectedName === "Other" ? customName : selectedName;
+            let distanceMetres = 0;
+            let displayName = baseName;
+            if (category === "track") {
+              const eventData = trackEvents.find(item => item[0] === selectedName);
+              if (selectedName === "1 hour run") {
+                distanceMetres = Math.round(Number(result || 0));
+                displayName = "1 hour run";
+              } else if (selectedName === "Other") {
+                distanceMetres = Math.round(Number(row.querySelector(".competition-manual-distance-metres")?.value || 0));
+              } else {
+                distanceMetres = Math.round(Number(eventData?.[1] || 0));
+              }
+              const hurdleSelect = row.querySelector(".competition-hurdle-height");
+              let hurdle = hurdleSelect?.value || null;
+              if (hurdle === "Custom") hurdle = row.querySelector(".competition-hurdle-height-custom")?.value.trim() || "Custom";
+              if (hurdle) displayName += ` (${selectedName.endsWith(" SC") ? "barrier" : "hurdle"} height: ${hurdle}${/^\\d/.test(hurdle) && !hurdle.includes("m") ? " m" : ""})`;
+            }
+            const weight = row.querySelector(".competition-implement-weight")?.value;
+            if (weight) displayName += ` (${weight})`;
+            const hurdleSelect = row.querySelector(".competition-hurdle-height");
+            let savedHurdle = hurdleSelect?.value || null;
+            if (savedHurdle === "Custom") savedHurdle = row.querySelector(".competition-hurdle-height-custom")?.value.trim() || null;
+            return {eventName:displayName, eventCategory:category, selectedEvent:selectedName, result, distanceMetres, hurdleHeight:savedHurdle, implementWeight:weight || null};
+          });
+          if (!eventName) { alert("Please enter the competition name."); return; }
+          if (!events.length || events.some((item, index) => {
+            const row = rows[index];
+            if (!item.eventName || !item.result) return true;
+            if (item.selectedEvent === "1 hour run" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres <= 0)) return true;
+            if (item.selectedEvent === "Other" && !row.querySelector(".competition-custom-name")?.value.trim()) return true;
+            if (item.selectedEvent === "Other" && item.eventCategory === "track" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres < 0)) return true;
+            if (item.eventCategory === "field" && ["Shot put","Javelin","Hammer","Discus"].includes(item.selectedEvent) && !item.implementWeight) return true;
+            const hurdleSelect = row.querySelector(".competition-hurdle-height");
+            if (hurdleSelect?.value === "Custom") {
+              const customHeight = Number(row.querySelector(".competition-hurdle-height-custom")?.value);
+              if (!Number.isFinite(customHeight) || customHeight <= 0) return true;
+            }
+            return false;
+          })) { alert("Please complete each event, result, and any required distance, hurdle height or implement weight. Remove any unused event row."); return; }
+          const warmupOnTrack = fields.querySelector(".warmup-on-track").value === "yes";
+          const warmupKm = warmupOnTrack ? Number(fields.querySelector(".warmup-distance").value) : 0;
+          if (warmupOnTrack && (!Number.isFinite(warmupKm) || warmupKm < 0 || fields.querySelector(".warmup-distance").value.trim() === "")) { alert("Please enter the on-track warm-up distance, or select No."); return; }
+          record = createVisitRecord(card.dataset.trackId, "competition", {
+            date, eventName, events, warmupOnTrack, warmupDistanceMetres:Math.round(warmupKm*1000)
+          });
+        }
+        if (recordToEdit) {
+          record.id = recordToEdit.id;
+          record.createdAt = recordToEdit.createdAt || record.createdAt;
+          const index = visitRecords.findIndex(item => item.id === recordToEdit.id);
+          if (index >= 0) visitRecords[index] = record;
+          else visitRecords.push(record);
+        } else {
+          visitRecords.push(record);
+        }
+        saveVisitRecords();
+        container.style.display = "none";
+        container.replaceChildren();
+
+        if (!targetContainer) {
+        card.querySelector(".track-details").style.display = "block";
+        const historyToggle = card.querySelector(".track-history-toggle");
+        if (historyToggle) historyToggle.textContent = "Hide records";
+      }
+      updateAllViews();
+
+      });
+      container.appendChild(form);
+      container.scrollIntoView({behavior:"smooth",block:"nearest"});
+    }
+
+    function formatDistance(metres) {
+      const km = (Number(metres || 0) / 1000);
+      return `${km.toLocaleString(undefined,{maximumFractionDigits:3})} km`;
+    }
+
+    function recordDistanceTotal(record) {
+      if (record.type === "training") return Number(record.distanceMetres || 0);
+      if (record.type === "competition") return Number(record.warmupDistanceMetres || 0) + (Array.isArray(record.events) ? record.events.reduce((sum, item) => sum + Number(item.distanceMetres || 0), 0) : 0);
+      return 0;
+    }
+
+    function renderHistory() {
+      const list = document.getElementById("visit-history-list"); list.replaceChildren();
+      const filter = document.getElementById("history-type-filter").value;
+      const sorted = [...visitRecords].filter(record => filter === "all" || record.type === filter).sort((a,b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || ""));
+      if (!sorted.length) { const empty = document.createElement("p"); empty.className = "empty-history"; empty.textContent = "No visits match this filter yet."; list.appendChild(empty); return; }
+      sorted.forEach(record => {
+        const item = document.createElement("article"); item.className = "history-record";
+        const heading = document.createElement("h4"); heading.textContent = trackNameById[record.trackId] || record.trackId; item.appendChild(heading);
+        const typeNames = {training:"Training",competition:"Competition",spectating:"Spectating"};
+        const meta = document.createElement("div"); meta.className = "history-meta";
+        const lines = [`${typeNames[record.type] || record.type} · ${record.date || "Date unknown"}`];
+        if (record.type === "training") lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+        if (record.type === "competition") {
+          lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
+          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}${event.distanceMetres ? ` · ${formatDistance(event.distanceMetres)} counted` : ""}`));
+          if (record.warmupOnTrack) lines.push(`On-track warm-up: ${formatDistance(record.warmupDistanceMetres)}`);
+          lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
+        }
+        if (record.type === "spectating") lines.push(`Event: ${record.eventName || "Name not recorded"}`);
+        meta.textContent = lines.join("\n"); meta.style.whiteSpace = "pre-line"; item.appendChild(meta);
+        const actions = document.createElement("div"); actions.className = "history-actions";
+        const edit = document.createElement("button"); edit.type = "button"; edit.className = "secondary"; edit.textContent = "Edit visit";
+        edit.addEventListener("click", () => {
+          const existingForm = item.querySelector(".history-edit-container");
+          if (existingForm) {
+            existingForm.remove();
+            return;
+       }
+       const formContainer = document.createElement("div");
+       formContainer.className = "history-edit-container";
+       item.appendChild(formContainer);
+       openVisitForm(edit, record, formContainer);
+       });
+       actions.appendChild(edit);
+        const remove = document.createElement("button"); remove.type = "button"; remove.className = "danger"; remove.textContent = "Delete visit";
+        remove.addEventListener("click", () => { if (confirm("Delete this visit record? This cannot be undone.")) { visitRecords = visitRecords.filter(entry => entry.id !== record.id); saveVisitRecords(); updateAllViews(); } });
+        actions.appendChild(remove); item.appendChild(actions); list.appendChild(item);
+      });
+    }
+
+
+     function toggleTrackHistory(button) {
+       const card = button.closest(".track-card");
+       const details = card.querySelector(".track-details");
+       const isOpen = details.style.display === "block";
+
+       details.style.display = isOpen ? "none" : "block";
+
+        // Show or hide track statistics together with records
+       const stats = card.querySelector(".track-stats");
+       if (stats) {
+         stats.style.display = isOpen ? "none" : "block";
+        }
+
+      button.textContent = isOpen ? "View records" : "Hide records";
+
+       if (!isOpen) renderTrackHistory(card);
+      }
+
+    function renderTrackHistory(card) {
+      const list = card.querySelector(".track-history-list");
+      if (!list) return;
+      list.replaceChildren();
+      const records = visitRecords
+        .filter(record => record.trackId === card.dataset.trackId)
+        .sort((a, b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || ""));
+      if (!records.length) {
+        const empty = document.createElement("p");
+        empty.className = "track-history-empty";
+        empty.textContent = "No previous records for this track yet.";
+        list.appendChild(empty);
+        return;
+      }
+
+      const typeNames = {training:"Training", competition:"Competition", spectating:"Spectating"};
+      records.forEach(record => {
+        const row = document.createElement("div");
+        row.className = "track-history-item";
+        const title = document.createElement("strong");
+        title.textContent = `${typeNames[record.type] || record.type} · ${record.date || "Date unknown"}`;
+        row.appendChild(title);
+        const detail = document.createElement("p");
+        const lines = [];
+        if (record.type === "training") lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+        if (record.type === "competition") {
+          lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
+          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}${event.distanceMetres ? ` · ${formatDistance(event.distanceMetres)} counted` : ""}`));
+          if (record.warmupOnTrack) lines.push(`On-track warm-up: ${formatDistance(record.warmupDistanceMetres)}`);
+          lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
+        }
+        if (record.type === "spectating") lines.push(`Event: ${record.eventName || "Name not recorded"}`);
+        detail.textContent = lines.join("\n");
+        row.appendChild(detail);
+
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "secondary";
+        edit.textContent = "Edit visit";
+        edit.addEventListener("click", () => openVisitForm(edit, record));
+        row.appendChild(edit);
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "danger";
+        remove.textContent = "Delete visit";
+        remove.addEventListener("click", () => {
+          if (!confirm("Delete this visit record? This cannot be undone.")) return;
+          visitRecords = visitRecords.filter(item => item.id !== record.id);
+          saveVisitRecords();
+          updateAllViews();
+        });
+        row.appendChild(remove);
+        list.appendChild(row);
+      });
+    }
+
+function showPage(page) {
+  // Show the selected page
+  document.querySelectorAll(".page-panel").forEach(panel => {
+    panel.classList.remove("active-page");
+  });
+
+  document.querySelectorAll(".nav-button").forEach(button => {
+    button.classList.remove("active");
+  });
+
+  // Activate the selected page
+  document.querySelectorAll(".records-page").forEach(panel => {
+    if (page === "records") {
+      panel.classList.add("active-page");
+    }
+  });
+
+  document.querySelectorAll(".directory-page").forEach(panel => {
+    if (page === "directory") {
+      panel.classList.add("active-page");
+    }
+  });
+
+  // Highlight the selected navigation button
+  const activeButton = document.querySelector(
+    `.nav-button[data-page="${page}"]`
+  );
+
+  if (activeButton) {
+    activeButton.classList.add("active");
+  }
+
+  // Return to the top when switching pages
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+    function updateAllViews() {
+      document.querySelectorAll(".track-card").forEach(card => {
+        updateTrackCard(card);
+        if (card.querySelector(".track-details")?.style.display === "block") {
+          renderTrackHistory(card);
+        }
+      });
+      updateCount();
+      renderHistory();
+    }
+
+    document.getElementById("surface-filter").addEventListener("change", filterTracks);
+    document.getElementById("track-search").addEventListener("input", filterTracks);
+    document.getElementById("history-type-filter").addEventListener("change", renderHistory);
+    showPage("records");
+    updateAllViews();
+    saveVisitRecords();
   </script>
 </body>
 </html>
