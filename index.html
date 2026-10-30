@@ -238,6 +238,12 @@ index_v5: JSON backup.
   margin-bottom: 20px;
 }
 
+.location-section iframe {
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
+}
+
 .location-section h4 {
   margin: 0 0 10px;
 }
@@ -1611,6 +1617,27 @@ function updateCount() {
       });
     }
 
+function sortTrackCards() {
+  const directory = document.querySelector(".directory-page");
+
+  const cards = Array.from(
+    directory.querySelectorAll(":scope > .track-card")
+  );
+
+  cards.sort((a, b) => {
+    const nameA = a.querySelector("h3").textContent.trim();
+    const nameB = b.querySelector("h3").textContent.trim();
+
+    return nameA.localeCompare(nameB, "en", {
+      sensitivity: "base"
+    });
+  });
+
+  cards.forEach(card => {
+    directory.appendChild(card);
+  });
+}
+
 function showPage(page) {
   // Hide the main banner on Track Directory
   const mainHeader = document.querySelector("main.container > header");
@@ -1640,6 +1667,17 @@ function showPage(page) {
     }
   });
 
+  // Refresh maps after the directory becomes visible
+if (page === "directory") {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".directory-page .track-card iframe").forEach(map => {
+        map.src = map.src;
+      });
+    });
+  });
+}
+
   // Highlight the selected navigation button
   const activeButton = document.querySelector(
     `.nav-button[data-page="${page}"]`
@@ -1650,7 +1688,7 @@ function showPage(page) {
   }
 
   // Return to the top when switching pages
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo(0, 0);
 }
 
     function updateAllViews() {
@@ -1668,6 +1706,7 @@ function showPage(page) {
     document.getElementById("track-search").addEventListener("input", filterTracks);
     document.getElementById("history-type-filter").addEventListener("change", renderHistory);
     document.getElementById("backup-file").addEventListener("change", importBackup);
+    sortTrackCards();
     showPage("records");
     updateAllViews();
     saveVisitRecords();
