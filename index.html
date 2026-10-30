@@ -85,6 +85,11 @@ index_v6: Compact, expandable Track Directory cards with a two-level card layout
       margin: 0 0 14px;
     }
 
+    /* Hide additional lane information in collapsed cards */
+    .track-card:not(.expanded) .extra-lanes {
+    display: none;
+    }
+
     .track-stats {
      display: none;
      margin: 12px 0;
@@ -424,17 +429,43 @@ body {
 .track-card-summary .track-info {
   margin: 0;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.6;
 }
 
+/* Collapsed card: display information in one line */
 .track-card-summary .track-info span {
   display: inline;
+}
+
+/* Hide N/A information in collapsed cards */
+.track-card:not(.expanded) .track-card-summary .hide-when-collapsed {
+  display: none;
 }
 
 .track-card-summary .track-info span + span::before {
   content: " | ";
   white-space: pre;
   color: #9aa69e;
+}
+
+/* Expanded card: restore the original vertical layout */
+.track-card.expanded .track-card-summary .track-info span {
+  display: block;
+}
+.track-card.expanded .track-card-summary .track-info .extra-lanes {
+  display: inline;
+}
+
+.track-card.expanded .track-card-summary .track-info span + span::before {
+  content: "";
+}
+
+.track-card.expanded .track-card-summary .track-info span:nth-child(2)::before {
+  content: "Surface: ";
+}
+
+.track-card.expanded .track-card-summary .track-info span:nth-child(3)::before {
+  content: "Lanes: ";
 }
 
 .track-card-content {
@@ -612,7 +643,7 @@ body {
           <p class="track-info">
           <span>400m</span>
           <span>Synthetic</span>
-          <span>6 lanes, 8 lane straight</span>
+          <span>6 lanes<span class="extra-lanes">, 8 sprint lanes</span>
         </p>
         </div>
         <div class="track-card-content">
@@ -762,7 +793,7 @@ body {
           <p class="track-info">
           <span>400m</span>
           <span>Synthetic</span>
-          <span>6 lanes, 8 lane straight</span>
+          <span>6 lanes<span class="extra-lanes">, 8 sprint lanes</span>
         </p>
         </div>
         <div class="track-card-content">
@@ -812,7 +843,7 @@ body {
           <p class="track-info">
           <span>321m (est)</span>
           <span>Dirt</span>
-          <span>N/A</span>
+          <span class="hide-when-collapsed">N/A</span>
         </p>
         </div>
         <div class="track-card-content">
@@ -1593,8 +1624,11 @@ function updateCount() {
     }
 
     function formatDistance(metres) {
-      const km = (Number(metres || 0) / 1000);
-      return `${km.toLocaleString(undefined,{maximumFractionDigits:3})} km`;
+     const km = Number(metres || 0) / 1000;
+     return `${km.toLocaleString(undefined,{
+     minimumFractionDigits:2,
+     maximumFractionDigits:2
+     })} km`;
     }
 
     function recordDistanceTotal(record) {
@@ -1617,7 +1651,7 @@ function updateCount() {
         if (record.type === "training") lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
         if (record.type === "competition") {
           lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
-          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}${event.distanceMetres ? ` · ${formatDistance(event.distanceMetres)} counted` : ""}`));
+          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}`));
           if (record.warmupOnTrack) lines.push(`On-track warm-up: ${formatDistance(record.warmupDistanceMetres)}`);
           lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
         }
@@ -1689,7 +1723,7 @@ function updateCount() {
         if (record.type === "training") lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
         if (record.type === "competition") {
           lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
-          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}${event.distanceMetres ? ` · ${formatDistance(event.distanceMetres)} counted` : ""}`));
+          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}`));
           if (record.warmupOnTrack) lines.push(`On-track warm-up: ${formatDistance(record.warmupDistanceMetres)}`);
           lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
         }
