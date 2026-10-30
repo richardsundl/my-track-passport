@@ -6,6 +6,7 @@ index_v2: Adds training, competition and spectating records.
 index_v3: Expands competition recording with Track/Field categories and event-specific options.
 index_v4: Two Pages: Track Directory and Visit History. 
 index_v5: JSON backup.
+index_v6: Compact, expandable Track Directory cards with a two-level card layout.
 -->
 
 <!DOCTYPE html>
@@ -392,6 +393,88 @@ body {
   text-decoration: underline;
 }
 
+/* Compact, expandable Track Directory cards */
+.track-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.track-card-summary {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.track-card-summary:hover {
+  background: #f8faf8;
+}
+
+.track-card-summary h3 {
+  margin: 0 0 5px;
+  font-size: 16px;
+}
+
+.track-card-summary .track-info {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.track-card-summary .track-info span {
+  display: inline;
+}
+
+.track-card-summary .track-info span + span::before {
+  content: " | ";
+  white-space: pre;
+  color: #9aa69e;
+}
+
+.track-card-content {
+  display: none;
+  padding: 0 18px 16px;
+}
+
+.track-card.expanded .track-card-content {
+  display: block;
+}
+
+.collapse-track-card {
+  display: block;
+  margin: 14px 0 0 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: normal;
+  line-height: 1.5;
+  background: transparent;
+  color: #000d06;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.track-card button.collapse-track-card {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  outline: none;
+  padding: 0;
+}
+
+.collapse-track-card:hover {
+  background: transparent;
+  color: #024b2c;
+  text-decoration: underline;
+}
+
 /* Mobile-friendly layout */
 @media (max-width: 600px) {
 
@@ -524,15 +607,16 @@ body {
 
 
       <article class="track-card" data-track-id="wimbledon" data-surface="Synthetic">
-        <h3>Wimbledon Park Track</h3>
-        <p class="track-info">
+        <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+          <h3>Wimbledon Park Track</h3>
+          <p class="track-info">
           <span>400m</span>
-          <span>Surface: Synthetic</span>
-          <span>Lanes: 6 lanes, 8 lane straight</span>
+          <span>Synthetic</span>
+          <span>6 lanes, 8 lane straight</span>
         </p>
-
-
-        <div class="location-section">
+        </div>
+        <div class="track-card-content">
+          <div class="location-section">
           
            <h4>Location</h4>
 
@@ -568,17 +652,21 @@ body {
             <div class="track-history-list"></div>
           </section>
         </div>
+          <button type="button" class="secondary collapse-track-card" aria-label="Collapse track card" title="Collapse" onclick="toggleTrackCard(this)">Fold</button>
+        </div>
       </article>
 
       <article class="track-card" data-track-id="battersea" data-surface="Synthetic">
-        <h3>Battersea Park Millennium Arena</h3>
-        <p class="track-info">
+        <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+          <h3>Battersea Park Millennium Arena</h3>
+          <p class="track-info">
           <span>400m</span>
-          <span>Surface: Synthetic</span>
-          <span>Lanes: 8 lanes</span>
+          <span>Synthetic</span>
+          <span>8 lanes</span>
         </p>
-
-        <div class="location-section">
+        </div>
+        <div class="track-card-content">
+          <div class="location-section">
           
            <h4>Location</h4>
 
@@ -614,17 +702,21 @@ body {
             <div class="track-history-list"></div>
           </section>
         </div>
+          <button type="button" class="secondary collapse-track-card" aria-label="Collapse track card" title="Collapse" onclick="toggleTrackCard(this)">Fold</button>
+        </div>
       </article>
 
       <article class="track-card" data-track-id="tooting" data-surface="Synthetic">
-        <h3>Tooting Bec Track</h3>
-        <p class="track-info">
+        <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+          <h3>Tooting Bec Track</h3>
+          <p class="track-info">
           <span>400m</span>
-          <span>Surface: Synthetic</span>
-          <span>Lanes: 8 lanes</span>
+          <span>Synthetic</span>
+          <span>8 lanes</span>
         </p>
-       
-        <div class="location-section">
+        </div>
+        <div class="track-card-content">
+          <div class="location-section">
           
            <h4>Location</h4>
 
@@ -660,17 +752,21 @@ body {
             <div class="track-history-list"></div>
           </section>
         </div>
+          <button type="button" class="secondary collapse-track-card" aria-label="Collapse track card" title="Collapse" onclick="toggleTrackCard(this)">Fold</button>
+        </div>
       </article>
             
       <article class="track-card" data-track-id="ladywell" data-surface="Synthetic">
-        <h3>Ladywell Arena</h3>
-        <p class="track-info">
+        <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+          <h3>Ladywell Arena</h3>
+          <p class="track-info">
           <span>400m</span>
-          <span>Surface: Synthetic</span>
-          <span>Lanes: 6 lanes, 8 lane straight</span>
+          <span>Synthetic</span>
+          <span>6 lanes, 8 lane straight</span>
         </p>
-   
-        <div class="location-section">
+        </div>
+        <div class="track-card-content">
+          <div class="location-section">
           
            <h4>Location</h4>
 
@@ -706,16 +802,21 @@ body {
             <div class="track-history-list"></div>
           </section>
         </div>
+          <button type="button" class="secondary collapse-track-card" aria-label="Collapse track card" title="Collapse" onclick="toggleTrackCard(this)">Fold</button>
+        </div>
       </article>
 
       <article class="track-card" data-track-id="canons" data-surface="Dirt">
-        <h3>Canons House and Grounds</h3>
-        <p class="track-info">
+        <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+          <h3>Canons House and Grounds</h3>
+          <p class="track-info">
           <span>321m (est)</span>
-          <span>Surface: Dirt</span>
-          <span>Lanes: N/A</span>
+          <span>Dirt</span>
+          <span>N/A</span>
         </p>
-        <div class="location-section">
+        </div>
+        <div class="track-card-content">
+          <div class="location-section">
           
            <h4>Location</h4>
 
@@ -749,6 +850,8 @@ body {
             <h4>Previous records at this track</h4>
             <div class="track-history-list"></div>
           </section>
+        </div>
+          <button type="button" class="secondary collapse-track-card" aria-label="Collapse track card" title="Collapse" onclick="toggleTrackCard(this)">Fold</button>
         </div>
       </article>
     </section>
@@ -1340,7 +1443,6 @@ function updateCount() {
           const savedEvents = Array.isArray(recordToEdit.events) ? recordToEdit.events : [];
           const eventsList = fields.querySelector(".events-list");
           if (savedEvents.length && eventsList && fields._addEventRow) {
-            const initialRows = [...eventsList.querySelectorAll(".event-row")];
             for (let i = 1; i < savedEvents.length; i++) fields._addEventRow();
             const rows = [...eventsList.querySelectorAll(".event-row")];
             savedEvents.forEach((saved, index) => {
@@ -1617,6 +1719,25 @@ function updateCount() {
       });
     }
 
+function toggleTrackCard(trigger) {
+  const card = trigger.closest(".track-card");
+  if (!card) return;
+
+  const isExpanded = card.classList.toggle("expanded");
+  const summary = card.querySelector(".track-card-summary");
+  if (summary) summary.setAttribute("aria-expanded", String(isExpanded));
+
+  // Reload this map only after its previously hidden card has become visible.
+  if (isExpanded) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const map = card.querySelector(".location-section iframe");
+        if (map) map.src = map.src;
+      });
+    });
+  }
+}
+
 function sortTrackCards() {
   const directory = document.querySelector(".directory-page");
 
@@ -1666,17 +1787,6 @@ function showPage(page) {
       panel.classList.add("active-page");
     }
   });
-
-  // Refresh maps after the directory becomes visible
-if (page === "directory") {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      document.querySelectorAll(".directory-page .track-card iframe").forEach(map => {
-        map.src = map.src;
-      });
-    });
-  });
-}
 
   // Highlight the selected navigation button
   const activeButton = document.querySelector(
