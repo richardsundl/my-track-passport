@@ -1612,6 +1612,12 @@ function updateCount() {
     }
 
 function showPage(page) {
+  // Hide the main banner on Track Directory
+  const mainHeader = document.querySelector("main.container > header");
+
+  if (mainHeader) {
+    mainHeader.style.display = page === "directory" ? "none" : "block";
+  }
   // Show the selected page
   document.querySelectorAll(".page-panel").forEach(panel => {
     panel.classList.remove("active-page");
