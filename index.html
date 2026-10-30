@@ -5,6 +5,7 @@ index_v1: Unified visit-record data model.
 index_v2: Adds training, competition and spectating records.
 index_v3: Expands competition recording with Track/Field categories and event-specific options.
 index_v4: Two Pages: Track Directory and Visit History. 
+index_v5: JSON backup.
 -->
 
 <!DOCTYPE html>
@@ -261,6 +262,25 @@ index_v4: Two Pages: Track Directory and Visit History.
     .track-history-item p { margin: 4px 0; font-size: 14px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
     .track-history-empty { color: #617168; font-size: 13px; }
     .history-section { margin-top: 28px; }
+
+    .backup-section {
+      background: white;
+      border: 1px solid #e1e8e2;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 28px;
+      }
+
+    .backup-section h2 {
+      margin-top: 0;
+      }
+
+    .backup-section p {
+      color: #617168;
+      font-size: 14px;
+      line-height: 1.5;
+     }
+
     .history-record { background: white; border: 1px solid #e1e8e2; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
     .history-record h4 { margin: 0 0 6px; }
     .history-meta { color: #617168; font-size: 13px; line-height: 1.5; }
@@ -409,6 +429,26 @@ body {
   </div>
 </section>
 
+<section class="backup-section page-panel records-page">
+  <h2>Data backup</h2>
+  <p>Export your visit records or restore them from a backup file.</p>
+
+  <button type="button" onclick="exportBackup()">
+    Export backup
+  </button>
+
+  <button type="button" class="secondary"
+    onclick="document.getElementById('backup-file').click()">
+    Import backup
+  </button>
+
+  <input
+    type="file"
+    id="backup-file"
+    accept=".json,application/json"
+    style="display:none"
+  >
+</section>
 
 <section class="page-panel directory-page"> 
 <div class="filter-section">
@@ -753,6 +793,112 @@ body {
     // Remove obsolete  entries from the unified records.
     visitRecords = visitRecords.filter(record => record && record.type !== "");
     function saveVisitRecords() { localStorage.setItem("visitRecords", JSON.stringify(visitRecords)); }
+    function exportBackup() {
+    // Prepare the backup data
+     const backupData = {
+      app: "My Track Passport",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      visitRecords: visitRecords
+      };
+
+    // Convert data into JSON
+     const json = JSON.stringify(backupData, null, 2);
+
+    // Create a downloadable file
+     const blob = new Blob([json], {
+      type: "application/json"
+      });
+
+     const url = URL.createObjectURL(blob);
+
+   // Generate today's date for the filename
+     const date = todayString();
+
+     const link = document.createElement("a");
+     link.href = url;
+     link.download = `my-track-passport-backup-${date}.json`;
+
+     document.body.appendChild(link);
+     link.click();
+     document.body.removeChild(link);
+
+     // Release the temporary URL after the download has started
+     setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+     alert("Backup exported successfully!");
+     }
+
+     
+async function importBackup(event) {
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  try {
+    // Read the selected JSON file
+    const text = await file.text();
+
+    // Convert JSON text into JavaScript data
+    const backupData = JSON.parse(text);
+
+    // Check whether this is a valid backup file
+    if (
+      !backupData ||
+      typeof backupData !== "object" ||
+      backupData.app !== "My Track Passport" ||
+      backupData.version !== 1 ||
+      !Array.isArray(backupData.visitRecords)
+    ) {
+      throw new Error("This is not a valid or supported My Track Passport backup file.");
+    }
+
+
+    // Check the structure of each visit record
+    const validRecords = backupData.visitRecords.every(record =>
+      record &&
+      typeof record === "object" &&
+      typeof record.id === "string" &&
+      record.id.trim() !== "" &&
+      typeof record.trackId === "string" &&
+      record.trackId.trim() !== "" &&
+      ["training", "competition", "spectating"].includes(record.type)
+    );
+
+    if (!validRecords) {
+      throw new Error("Some visit records have an invalid format.");
+    }
+
+    // Ask for confirmation before replacing existing data
+    const confirmed = confirm(
+      `This backup contains ${backupData.visitRecords.length} visit records.\n\n` +
+      "Importing will replace ALL your current visit records.\n\n" +
+      "Have you exported your current data and do you want to continue?"
+    );
+
+    if (!confirmed) return;
+
+    // Replace current records with backup records
+    visitRecords = backupData.visitRecords;
+
+    // Save and refresh the application
+    saveVisitRecords();
+    updateAllViews();
+
+    alert(
+      `Import successful!\n${visitRecords.length} visit records restored.`
+    );
+
+  } catch (error) {
+    alert("Import failed: " + error.message);
+
+  } finally {
+    // Allow the same file to be selected again
+    event.target.value = "";
+  }
+}
+
+
     function getTrackVisits(trackId) { return visitRecords.filter(record => record.trackId === trackId); }
     function getTrainingRecords(trackId) { return visitRecords.filter(record => record.trackId === trackId && record.type === "training"); }
 
@@ -1466,6 +1612,7 @@ function showPage(page) {
     document.getElementById("surface-filter").addEventListener("change", filterTracks);
     document.getElementById("track-search").addEventListener("input", filterTracks);
     document.getElementById("history-type-filter").addEventListener("change", renderHistory);
+    document.getElementById("backup-file").addEventListener("change", importBackup);
     showPage("records");
     updateAllViews();
     saveVisitRecords();
