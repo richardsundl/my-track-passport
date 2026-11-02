@@ -232,6 +232,64 @@ index_v6: Compact, expandable Track Directory cards with a two-level card layout
     font-size: 16px;
    }
 
+   /* Filters button */
+.filters-button {
+  margin-top: 8px;
+}
+
+/* Filter modal background */
+.filter-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Filter modal panel */
+.filter-modal-content {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.filter-modal-content h3 {
+  margin: 0 0 18px;
+}
+
+.filter-modal-content label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 14px;
+  color: #46574c;
+}
+
+.filter-modal-content select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5ce;
+  border-radius: 8px;
+  background: white;
+  font-size: 16px;
+}
+
+.filter-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.filter-modal-actions button {
+  margin: 0;
+}
+
 #track-search {
   margin-bottom: 12px;
 }
@@ -628,16 +686,59 @@ body {
     placeholder="Enter a track name..."
   >
 
-  <label for="surface-filter">Filter by surface</label>
-  <select id="surface-filter">
-    <option value="All">All surfaces</option>
-    <option value="Synthetic">Synthetic</option>
-    <option value="Dirt">Dirt</option>
-  </select>
+  <button
+    type="button"
+    id="open-filters-button"
+    class="secondary filters-button"
+    onclick="openFilters()"
+  >
+    Filters
+  </button>
+</div>
+
+<div id="filter-modal" class="filter-modal" style="display:none;">
+  <div class="filter-modal-content">
+    <h3>Filters</h3>
+
+    <label for="environment-filter">Indoor / Outdoor</label>
+    <select id="environment-filter">
+      <option value="all">All</option>
+      <option value="outdoor">Outdoor</option>
+      <option value="indoor">Indoor</option>
+    </select>
+
+    <label for="surface-filter">Track surface</label>
+    <select id="surface-filter">
+      <option value="all">All surfaces</option>
+      <option value="Synthetic">Synthetic</option>
+      <option value="Dirt">Dirt</option>
+    </select>
+
+    <label for="length-filter">Track length</label>
+    <select id="length-filter">
+      <option value="all">All lengths</option>
+      <option value="400m">400m</option>
+      <option value="200m">200m</option>
+      <option value="other">Other</option>
+    </select>
+
+    <div class="filter-modal-actions">
+      <button type="button" class="secondary" onclick="resetFilters()">
+       Reset
+      </button>
+      <button type="button" class="secondary" onclick="closeFilters()">
+        Cancel
+      </button>
+      <button type="button" onclick="applyFilters()">
+        Apply
+      </button>
+     </div>
+
+  </div>
 </div>
 
 
-      <article class="track-card" data-track-id="wimbledon" data-surface="Synthetic">
+      <article class="track-card" data-track-id="wimbledon" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Wimbledon Park Track</h3>
           <p class="track-info">
@@ -687,7 +788,7 @@ body {
         </div>
       </article>
 
-      <article class="track-card" data-track-id="battersea" data-surface="Synthetic">
+      <article class="track-card" data-track-id="battersea" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Battersea Park Millennium Arena</h3>
           <p class="track-info">
@@ -737,7 +838,7 @@ body {
         </div>
       </article>
 
-      <article class="track-card" data-track-id="tooting" data-surface="Synthetic">
+      <article class="track-card" data-track-id="tooting" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Tooting Bec Track</h3>
           <p class="track-info">
@@ -787,7 +888,7 @@ body {
         </div>
       </article>
             
-      <article class="track-card" data-track-id="ladywell" data-surface="Synthetic">
+     <article class="track-card" data-track-id="ladywell" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Ladywell Arena</h3>
           <p class="track-info">
@@ -837,7 +938,7 @@ body {
         </div>
       </article>
 
-      <article class="track-card" data-track-id="canons" data-surface="Dirt">
+      <article class="track-card" data-track-id="canons" data-surface="Dirt" data-environment="outdoor" data-length="other">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Canons House and Grounds</h3>
           <p class="track-info">
@@ -1240,15 +1341,79 @@ function updateCount() {
 }
 
 
-    function filterTracks() {
-      const selectedSurface = document.getElementById("surface-filter").value;
-      const searchTerm = document.getElementById("track-search").value.trim().toLowerCase();
-      document.querySelectorAll(".track-card").forEach(card => {
-        const matchesSurface = selectedSurface === "All" || card.dataset.surface === selectedSurface;
-        const matchesSearch = card.querySelector("h3").textContent.toLowerCase().includes(searchTerm);
-        card.style.display = matchesSurface && matchesSearch ? "" : "none";
-      });
-    }
+// Currently applied filter selections
+let appliedFilters = {
+  environment: "all",
+  surface: "all",
+  length: "all"
+};
+
+// Open the filter modal
+function openFilters() {
+  document.getElementById("environment-filter").value = appliedFilters.environment;
+  document.getElementById("surface-filter").value = appliedFilters.surface;
+  document.getElementById("length-filter").value = appliedFilters.length;
+
+  document.getElementById("filter-modal").style.display = "flex";
+}
+// Reset all filter selections
+function resetFilters() {
+  document.getElementById("environment-filter").value = "all";
+  document.getElementById("surface-filter").value = "all";
+  document.getElementById("length-filter").value = "all";
+}
+
+// Close the filter modal
+function closeFilters() {
+  document.getElementById("filter-modal").style.display = "none";
+}
+
+// Apply the selected filters
+function applyFilters() {
+  appliedFilters.environment = document.getElementById("environment-filter").value;
+  appliedFilters.surface = document.getElementById("surface-filter").value;
+  appliedFilters.length = document.getElementById("length-filter").value;
+
+  const activeCount = Object.values(appliedFilters)
+    .filter(value => value !== "all").length;
+
+  const button = document.getElementById("open-filters-button");
+  button.textContent = activeCount === 0
+    ? "Filters"
+    : `Filters · ${activeCount}`;
+
+  closeFilters();
+  filterTracks();
+}
+
+// Filter track cards
+function filterTracks() {
+  const searchTerm = document.getElementById("track-search").value
+    .trim()
+    .toLowerCase();
+
+  document.querySelectorAll(".track-card").forEach(card => {
+    const matchesEnvironment =
+      appliedFilters.environment === "all" ||
+      card.dataset.environment === appliedFilters.environment;
+
+    const matchesSurface =
+      appliedFilters.surface === "all" ||
+      card.dataset.surface === appliedFilters.surface;
+
+    const matchesLength =
+      appliedFilters.length === "all" ||
+      card.dataset.length === appliedFilters.length;
+
+    const matchesSearch =
+      card.querySelector("h3").textContent.toLowerCase().includes(searchTerm);
+
+    card.style.display =
+      matchesEnvironment && matchesSurface && matchesLength && matchesSearch
+        ? ""
+        : "none";
+  });
+}
 
     function addField(parent, labelText, type, className, options = {}) {
       const label = document.createElement("label");
@@ -1846,7 +2011,7 @@ function showPage(page) {
       renderHistory();
     }
 
-    document.getElementById("surface-filter").addEventListener("change", filterTracks);
+    
     document.getElementById("track-search").addEventListener("input", filterTracks);
     document.getElementById("history-type-filter").addEventListener("change", renderHistory);
     document.getElementById("backup-file").addEventListener("change", importBackup);
