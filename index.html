@@ -986,8 +986,79 @@ body {
           <button type="button" class="secondary collapse-track-card" aria-label="Collapse track card" title="Collapse" onclick="toggleTrackCard(this)">Fold</button>
         </div>
       </article>
+
+      <article class="track-card"
+  data-track-id="lee-valley-indoor"
+  data-surface="Synthetic"
+  data-environment="indoor"
+  data-length="200m">
+
+  <div class="track-card-summary" role="button" tabindex="0"
+    aria-expanded="false"
+    onclick="toggleTrackCard(this)"
+    onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+
+    <h3>Lee Valley Athletics Centre Indoor</h3>
+
+    <p class="track-info">
+      <span>200m indoor</span>
+      <span>Synthetic</span>
+      <span>6 lanes</span>
+    </p>
+  </div>
+
+  <div class="track-card-content">
+
+    <div class="location-section">
+      <h4>Location</h4>
+
+      <p>61 Meridian Wy., London N9 0AR</p>
+
+      <iframe
+        title="Lee Valley Athletics Centre Indoor location map"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=-0.041207%2C51.629526%2C-0.033207%2C51.633526&layer=mapnik&marker=51.6315258866474%2C-0.037206593708586526"
+        width="100%"
+        height="220"
+        style="border: 0; border-radius: 8px;"
+        loading="lazy">
+      </iframe>
+
+      <p>
+        <a
+          href="https://www.openstreetmap.org/?mlat=51.6315258866474&mlon=-0.037206593708586526#map=17/51.6315258866474/-0.037206593708586526"
+          target="_blank"
+          rel="noopener noreferrer">
+          Open in OpenStreetMap
+        </a>
+      </p>
+    </div>
+
+    <span class="status">Not visited</span><br>
+
+    <button type="button" onclick="openVisitForm(this)">Add visit</button>
+
+    <button type="button" class="secondary track-history-toggle"
+      onclick="toggleTrackHistory(this)">View records</button>
+
+    <div class="track-details">
+      <div class="visit-form-container"></div>
+
+      <section class="track-records-panel">
+        <h4>Previous records at this track</h4>
+        <div class="track-history-list"></div>
+      </section>
+    </div>
+
+    <button type="button" class="secondary collapse-track-card"
+      aria-label="Collapse track card"
+      title="Collapse"
+      onclick="toggleTrackCard(this)">Fold</button>
+
+  </div>
+</article>
+
     </section>
-    </section>    
+   </section>    
 
     <section id="visit-history-section" class="history-section page-panel records-page">
       <h2>Visit history</h2>
@@ -1497,9 +1568,26 @@ function filterTracks() {
             "Hammer":["2 kg","3 kg","3.25 kg","3.63 kg","4 kg","5 kg","6 kg","7.26 kg"],
             "Discus":["0.6 kg","0.75 kg","1 kg","1.25 kg","1.5 kg","1.6 kg","1.75 kg","2 kg"]
           };
-      function renderModeFields() {
-        fields.replaceChildren();
-        addField(fields, mode.value === "training" ? "Training date" : mode.value === "competition" ? "Competition date" : "Spectating date", "date", "visit-date", {required:true, value:todayString()});
+     function renderModeFields() {
+      // Preserve the currently selected date before rebuilding the fields
+      const existingDate = fields.querySelector(".visit-date");
+      const selectedDate = existingDate
+        ? existingDate.value
+        : (recordToEdit?.date || todayString());
+
+      fields.replaceChildren();
+
+      addField(
+        fields,
+         mode.value === "training"
+           ? "Training date"
+           : mode.value === "competition"
+           ? "Competition date"
+           : "Spectating date",
+       "date",
+       "visit-date",
+       { required: true, value: selectedDate }
+     );
         if (mode.value === "training") {
           addField(fields, "Distance (km)", "number", "training-distance", {required:true,min:"0.001",step:"any",placeholder:"e.g. 4.25"});
         } else if (mode.value === "spectating") {
