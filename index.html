@@ -332,6 +332,29 @@ index_v7: Adds Map/List directory views, coloured visit-status markers and track
     .visit-form h4 { margin: 0 0 12px; }
     .visit-form label { display: block; margin-top: 10px; font-size: 14px; color: #46574c; }
     .visit-form input, .visit-form select { margin-top: 5px; }
+    .visit-form textarea {
+       display: block;
+       width: 100%;
+       margin-top: 5px;
+       padding: 10px;
+       border: 1px solid #cbd5ce;
+       border-radius: 8px;
+       font-family: Arial, sans-serif;
+       font-size: 15px;
+       line-height: 1.5;
+       resize: vertical;
+    }
+
+    .visit-notes-display {
+      margin: 8px 0;
+      padding: 10px;
+      background: #f4f6f4;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
     .visit-form .form-actions { margin-top: 12px; }
     .event-row { border: 1px solid #d8e0da; padding: 10px; border-radius: 8px; margin-top: 10px; }
     .track-records-panel { margin-top: 16px; padding-top: 14px; border-top: 1px solid #e1e8e2; }
@@ -875,7 +898,8 @@ body {
 
 
 
-      <article class="track-card" data-track-id="wimbledon" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
+      <article class="track-card" data-track-id="wimbledon" data-surface="Synthetic" data-environment="outdoor" data-length="400m"
+      data-lat="51.43785307099819" data-lng="-0.2079979077899185">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Wimbledon Park Track</h3>
           <p class="track-info">
@@ -887,7 +911,7 @@ body {
         <div class="track-card-content">
           <div class="location-section">
           
-           <h4>Location</h4>
+           <h4>Address</h4>
 
            <p>Wimbledon Park Road, London SW19 6PE</p>
 
@@ -925,7 +949,7 @@ body {
         </div>
       </article>
 
-      <article class="track-card" data-track-id="battersea" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
+      <article class="track-card" data-track-id="battersea" data-surface="Synthetic" data-environment="outdoor" data-length="400m" data-lat="51.48070643683939" data-lng="-0.15101614334039884">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Battersea Park Millennium Arena</h3>
           <p class="track-info">
@@ -937,7 +961,7 @@ body {
         <div class="track-card-content">
           <div class="location-section">
           
-           <h4>Location</h4>
+           <h4>Address</h4>
 
            <p>Carriage Dr E, London SW11 4NJ</p>
 
@@ -975,7 +999,7 @@ body {
         </div>
       </article>
 
-      <article class="track-card" data-track-id="tooting" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
+      <article class="track-card" data-track-id="tooting" data-surface="Synthetic" data-environment="outdoor" data-length="400m" data-lat="51.43027414387151" data-lng="-0.14672254325537226">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Tooting Bec Track</h3>
           <p class="track-info">
@@ -987,7 +1011,7 @@ body {
         <div class="track-card-content">
           <div class="location-section">
           
-           <h4>Location</h4>
+           <h4>Address</h4>
 
            <p>Athletics Track, Tooting Bec Rd, London SW16 1RT</p>
 
@@ -1025,7 +1049,7 @@ body {
         </div>
       </article>
             
-     <article class="track-card" data-track-id="ladywell" data-surface="Synthetic" data-environment="outdoor" data-length="400m">
+     <article class="track-card" data-track-id="ladywell" data-surface="Synthetic" data-environment="outdoor" data-length="400m" data-lat="51.4513334403169" data-lng="-0.020847526053579243">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Ladywell Arena</h3>
           <p class="track-info">
@@ -1037,7 +1061,7 @@ body {
         <div class="track-card-content">
           <div class="location-section">
           
-           <h4>Location</h4>
+           <h4>Address</h4>
 
            <p>Silvermere Rd, London SE6 4QX</p>
 
@@ -1075,7 +1099,7 @@ body {
         </div>
       </article>
 
-      <article class="track-card" data-track-id="canons" data-surface="Dirt" data-environment="outdoor" data-length="other">
+      <article class="track-card" data-track-id="canons" data-surface="Dirt" data-environment="outdoor" data-length="other" data-lat="51.40207051301503" data-lng="-0.16289298702031993">
         <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
           <h3>Canons House and Grounds</h3>
           <p class="track-info">
@@ -1087,7 +1111,7 @@ body {
         <div class="track-card-content">
           <div class="location-section">
           
-           <h4>Location</h4>
+           <h4>Address</h4>
 
            <p>82 Langdale Ave, Mitcham CR4 4AF</p>
 
@@ -1128,7 +1152,9 @@ body {
   data-track-id="lee-valley-indoor"
   data-surface="Synthetic"
   data-environment="indoor"
-  data-length="200m">
+  data-length="200m"
+  data-lat="51.6315258866474"
+  data-lng="-0.037206593708586526">
 
   <div class="track-card-summary" role="button" tabindex="0"
     aria-expanded="false"
@@ -1147,7 +1173,7 @@ body {
   <div class="track-card-content">
 
     <div class="location-section">
-      <h4>Location</h4>
+      <h4>Address</h4>
 
       <p>61 Meridian Wy., London N9 0AR</p>
 
@@ -1192,6 +1218,291 @@ body {
 
   </div>
 </article>
+
+<article class="track-card"
+  data-track-id="mile-end"
+  data-surface="Synthetic"
+  data-environment="outdoor"
+  data-length="400m"
+  data-lat="51.51856131278078"
+  data-lng="-0.03366885640291293">
+
+  <div class="track-card-summary" role="button" tabindex="0"
+    aria-expanded="false"
+    onclick="toggleTrackCard(this)"
+    onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+
+    <h3>Mile End Stadium</h3>
+
+    <p class="track-info">
+      <span>400m</span>
+      <span>Synthetic</span>
+      <span>8 lanes</span>
+    </p>
+  </div>
+
+  <div class="track-card-content">
+    <div class="location-section">
+      <h4>Address</h4>
+
+      <p>190 Burdett Rd, London E3 4HL</p>
+
+      <iframe
+        title="Mile End Stadium location map"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=-0.038%2C51.5165%2C-0.0293%2C51.5206&layer=mapnik&marker=51.51856131278078%2C-0.03366885640291293"
+        width="100%"
+        height="220"
+        style="border: 0; border-radius: 8px;"
+        loading="lazy">
+      </iframe>
+
+      <p>
+        <a
+          href="https://www.openstreetmap.org/?mlat=51.51856131278078&mlon=-0.03366885640291293#map=17/51.51856131278078/-0.03366885640291293"
+          target="_blank"
+          rel="noopener noreferrer">
+          Open in OpenStreetMap
+        </a>
+      </p>
+    </div>
+
+    <span class="status">Not visited</span><br>
+
+    <button type="button" class="track-visit-toggle"
+      onclick="openVisitForm(this)">Add visit</button>
+
+    <button type="button" class="secondary track-history-toggle"
+      onclick="toggleTrackHistory(this)">View records</button>
+
+    <div class="track-details">
+      <div class="visit-form-container"></div>
+
+      <section class="track-records-panel">
+        <h4>Previous records at this track</h4>
+        <div class="track-history-list"></div>
+      </section>
+    </div>
+
+    <button type="button" class="secondary collapse-track-card"
+      aria-label="Collapse track card"
+      title="Collapse"
+      onclick="toggleTrackCard(this)">Fold</button>
+  </div>
+</article>
+
+<article class="track-card"
+  data-track-id="victoria-park"
+  data-surface="Dirt"
+  data-environment="outdoor"
+  data-length="400m"
+  data-lat="51.53930008560957"
+  data-lng="-0.03160839335376775">
+
+  <div class="track-card-summary" role="button" tabindex="0"
+    aria-expanded="false"
+    onclick="toggleTrackCard(this)"
+    onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+
+    <h3>Victoria Park Athletics Arena</h3>
+
+    <p class="track-info">
+      <span>400m</span>
+      <span>Dirt</span>
+      <span class="hide-when-collapsed">N/A</span>
+    </p>
+  </div>
+
+  <div class="track-card-content">
+    <div class="location-section">
+      <h4>Address</h4>
+
+      <p>Victoria Park, London, E9</p>
+
+      <iframe
+        title="Victoria Park Athletics Arena location map"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=-0.036%2C51.5373%2C-0.0272%2C51.5413&layer=mapnik&marker=51.53930008560957%2C-0.03160839335376775"
+        width="100%"
+        height="220"
+        style="border: 0; border-radius: 8px;"
+        loading="lazy">
+      </iframe>
+
+      <p>
+        <a
+          href="https://www.openstreetmap.org/?mlat=51.53930008560957&mlon=-0.03160839335376775#map=17/51.53930008560957/-0.03160839335376775"
+          target="_blank"
+          rel="noopener noreferrer">
+          Open in OpenStreetMap
+        </a>
+      </p>
+    </div>
+
+    <span class="status">Not visited</span><br>
+
+    <button type="button" class="track-visit-toggle"
+      onclick="openVisitForm(this)">Add visit</button>
+
+    <button type="button" class="secondary track-history-toggle"
+      onclick="toggleTrackHistory(this)">View records</button>
+
+    <div class="track-details">
+      <div class="visit-form-container"></div>
+
+      <section class="track-records-panel">
+        <h4>Previous records at this track</h4>
+        <div class="track-history-list"></div>
+      </section>
+    </div>
+
+    <button type="button" class="secondary collapse-track-card"
+      aria-label="Collapse track card"
+      title="Collapse"
+      onclick="toggleTrackCard(this)">Fold</button>
+  </div>
+</article>
+
+<article class="track-card"
+  data-track-id="linford-christie"
+  data-surface="Synthetic"
+  data-environment="outdoor"
+  data-length="400m"
+  data-lat="51.519561020388814"
+  data-lng="-0.23600077522394344">
+
+  <div class="track-card-summary" role="button" tabindex="0"
+    aria-expanded="false"
+    onclick="toggleTrackCard(this)"
+    onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+
+    <h3>Linford Christie Stadium</h3>
+
+    <p class="track-info">
+      <span>400m</span>
+      <span>Synthetic</span>
+      <span>8 lanes</span>
+    </p>
+  </div>
+
+  <div class="track-card-content">
+    <div class="location-section">
+      <h4>Address</h4>
+
+      <p>Linford Christie Rd, London W12 0DF</p>
+
+      <iframe
+        title="Linford Christie Stadium location map"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=-0.240%2C51.5175%2C-0.232%2C51.5216&layer=mapnik&marker=51.519561020388814%2C-0.23600077522394344"
+        width="100%"
+        height="220"
+        style="border: 0; border-radius: 8px;"
+        loading="lazy">
+      </iframe>
+
+      <p>
+        <a
+          href="https://www.openstreetmap.org/?mlat=51.519561020388814&mlon=-0.23600077522394344#map=17/51.519561020388814/-0.23600077522394344"
+          target="_blank"
+          rel="noopener noreferrer">
+          Open in OpenStreetMap
+        </a>
+      </p>
+    </div>
+
+    <span class="status">Not visited</span><br>
+
+    <button type="button" class="track-visit-toggle"
+      onclick="openVisitForm(this)">Add visit</button>
+
+    <button type="button" class="secondary track-history-toggle"
+      onclick="toggleTrackHistory(this)">View records</button>
+
+    <div class="track-details">
+      <div class="visit-form-container"></div>
+
+      <section class="track-records-panel">
+        <h4>Previous records at this track</h4>
+        <div class="track-history-list"></div>
+      </section>
+    </div>
+
+    <button type="button" class="secondary collapse-track-card"
+      aria-label="Collapse track card"
+      title="Collapse"
+      onclick="toggleTrackCard(this)">Fold</button>
+  </div>
+</article>
+
+<article class="track-card"
+  data-track-id="paddington-recreation"
+  data-surface="Synthetic"
+  data-environment="outdoor"
+  data-length="400m"
+  data-lat="51.53034100616128"
+  data-lng="-0.1927958748032669">
+
+  <div class="track-card-summary" role="button" tabindex="0"
+    aria-expanded="false"
+    onclick="toggleTrackCard(this)"
+    onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+
+    <h3>Paddington Recreation Ground</h3>
+
+    <p class="track-info">
+      <span>400m</span>
+      <span>Synthetic</span>
+      <span>6 lanes</span>
+    </p>
+  </div>
+
+  <div class="track-card-content">
+    <div class="location-section">
+      <h4>Address</h4>
+
+      <p>Randolph Ave., London W9 1PF</p>
+
+      <iframe
+        title="Paddington Recreation Ground location map"
+        src="https://www.openstreetmap.org/export/embed.html?bbox=-0.196%2C51.528%2C-0.190%2C51.533&layer=mapnik&marker=51.53034100616128%2C-0.1927958748032669"
+        width="100%"
+        height="220"
+        style="border: 0; border-radius: 8px;"
+        loading="lazy">
+      </iframe>
+
+      <p>
+        <a
+          href="https://www.openstreetmap.org/?mlat=51.53034100616128&mlon=-0.1927958748032669#map=17/51.53034100616128/-0.1927958748032669"
+          target="_blank"
+          rel="noopener noreferrer">
+          Open in OpenStreetMap
+        </a>
+      </p>
+    </div>
+
+    <span class="status">Not visited</span><br>
+
+    <button type="button" class="track-visit-toggle"
+      onclick="openVisitForm(this)">Add visit</button>
+
+    <button type="button" class="secondary track-history-toggle"
+      onclick="toggleTrackHistory(this)">View records</button>
+
+    <div class="track-details">
+      <div class="visit-form-container"></div>
+
+      <section class="track-records-panel">
+        <h4>Previous records at this track</h4>
+        <div class="track-history-list"></div>
+      </section>
+    </div>
+
+    <button type="button" class="secondary collapse-track-card"
+      aria-label="Collapse track card"
+      title="Collapse"
+      onclick="toggleTrackCard(this)">Fold</button>
+  </div>
+</article>
+
 </div><!-- end track-list-view -->
 
 <div id="filter-modal" class="filter-modal" style="display:none;">
@@ -1777,7 +2088,18 @@ if (!targetContainer && button &&
         {value:"training",label:"Training"},{value:"competition",label:"Competition"},{value:"spectating",label:"Spectating"}
       ]});
       const fields = document.createElement("div"); fields.className = "mode-fields"; form.appendChild(fields);
-      
+      // Optional notes shared by all visit types
+      const notesLabel = document.createElement("label");
+      notesLabel.textContent = "Notes (optional)";
+
+      const notesInput = document.createElement("textarea");
+      notesInput.className = "visit-notes";
+      notesInput.rows = 3;
+      notesInput.placeholder = "Write about your experience...";
+
+      notesLabel.appendChild(notesInput);
+      form.appendChild(notesLabel);
+
       const actions = document.createElement("div"); 
       actions.className = "form-actions";
 
@@ -1939,6 +2261,7 @@ if (!targetContainer && button &&
       if (recordToEdit) {
         mode.value = recordToEdit.type;
         renderModeFields();
+        notesInput.value = recordToEdit.notes || "";
         const dateInput = fields.querySelector(".visit-date");
         if (dateInput) dateInput.value = recordToEdit.date || todayString();
         if (recordToEdit.type === "training") {
@@ -2084,6 +2407,7 @@ if (!targetContainer && button &&
             date, eventName, events, warmupOnTrack, warmupDistanceMetres:Math.round(warmupKm*1000)
           });
         }
+        record.notes = notesInput.value.trim();
         if (recordToEdit) {
           record.id = recordToEdit.id;
           record.createdAt = recordToEdit.createdAt || record.createdAt;
@@ -2164,6 +2488,13 @@ updateAllViews();
         }
         if (record.type === "spectating") lines.push(`Event: ${record.eventName || "Name not recorded"}`);
         meta.textContent = lines.join("\n"); meta.style.whiteSpace = "pre-line"; item.appendChild(meta);
+        if (record.notes && record.notes.trim()) {
+         const notes = document.createElement("p");
+         notes.className = "visit-notes-display";
+         notes.textContent = `Notes: ${record.notes}`;
+         item.appendChild(notes);
+        }
+
         const actions = document.createElement("div"); actions.className = "history-actions";
         const edit = document.createElement("button"); edit.type = "button"; edit.className = "secondary"; edit.textContent = "Edit visit";
         edit.addEventListener("click", () => {
@@ -2249,6 +2580,12 @@ function toggleTrackHistory(button) {
         if (record.type === "spectating") lines.push(`Event: ${record.eventName || "Name not recorded"}`);
         detail.textContent = lines.join("\n");
         row.appendChild(detail);
+        if (record.notes && record.notes.trim()) {
+          const notes = document.createElement("p");
+          notes.className = "visit-notes-display";
+          notes.textContent = `Notes: ${record.notes}`;
+          row.appendChild(notes);
+          }
 
         const edit = document.createElement("button");
         edit.type = "button";
@@ -2368,14 +2705,25 @@ let directoryView = "map";
 let directoryMap = null;
 let directoryMapMarkers = [];
 
-const trackMapLocations = {
-  "wimbledon": { lat: 51.43785307099819, lng: -0.2079979077899185 },
-  "battersea": { lat: 51.48070643683939, lng: -0.15101614334039884 },
-  "tooting": { lat: 51.43027414387151, lng: -0.14672254325537226 },
-  "ladywell": { lat: 51.4513334403169, lng: -0.020847526053579243 },
-  "canons": { lat: 51.40207051301503, lng: -0.16289298702031993 },
-  "lee-valley-indoor": { lat: 51.6315258866474, lng: -0.037206593708586526 }
-};
+const trackMapLocations = {};
+
+document.querySelectorAll(".track-card[data-track-id]").forEach(card => {
+    const trackId = card.dataset.trackId;
+    const lat = Number(card.dataset.lat);
+    const lng = Number(card.dataset.lng);
+
+    if (
+        card.dataset.lat !== undefined &&
+        card.dataset.lng !== undefined &&
+        Number.isFinite(lat) &&
+        Number.isFinite(lng)
+    ) {
+        trackMapLocations[trackId] = {
+            lat: lat,
+            lng: lng
+        };
+    }
+});
 
 function setDirectoryView(view) {
   directoryView = view === "list" ? "list" : "map";
