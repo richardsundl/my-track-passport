@@ -8,6 +8,7 @@ index_v4: Two Pages: Track Directory and Visit History.
 index_v5: JSON backup.
 index_v6: Compact, expandable Track Directory cards with a two-level card layout.
 index_v7: Adds Map/List directory views, coloured visit-status markers and track-detail popups.
+index_v8: Detailed visit records with start time, duration.
 -->
 
 <!DOCTYPE html>
@@ -355,7 +356,16 @@ index_v7: Adds Map/List directory views, coloured visit-status markers and track
       white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
-    .visit-form .form-actions { margin-top: 12px; }
+  .visit-form .form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.visit-form .form-actions button {
+  margin: 0;
+}
     .event-row { border: 1px solid #d8e0da; padding: 10px; border-radius: 8px; margin-top: 10px; }
     .track-records-panel { margin-top: 16px; padding-top: 14px; border-top: 1px solid #e1e8e2; }
     .track-records-panel h4 { margin: 0 0 10px; }
@@ -1661,6 +1671,8 @@ body {
     // Remove obsolete  entries from the unified records.
     visitRecords = visitRecords.filter(record => record && record.type !== "");
     function saveVisitRecords() { localStorage.setItem("visitRecords", JSON.stringify(visitRecords)); }
+
+
     function exportBackup() {
     // Prepare the backup data
      const backupData = {
@@ -1669,6 +1681,7 @@ body {
       exportedAt: new Date().toISOString(),
       visitRecords: visitRecords
       };
+    
 
     // Convert data into JSON
      const json = JSON.stringify(backupData, null, 2);
@@ -1681,11 +1694,15 @@ body {
      const url = URL.createObjectURL(blob);
 
    // Generate today's date for the filename
+     // Generate date and time for the filename
+     const now = new Date();
+
      const date = todayString();
+     const time = `${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}`;
 
      const link = document.createElement("a");
      link.href = url;
-     link.download = `my-track-passport-backup-${date}.json`;
+     link.download = `my-track-passport-backup-${date}-${time}.json`;
 
      document.body.appendChild(link);
      link.click();
@@ -1751,6 +1768,7 @@ async function importBackup(event) {
 
     // Save and refresh the application
     saveVisitRecords();
+
     updateAllViews();
 
     alert(
@@ -1808,6 +1826,18 @@ function updateTrackCard(card) {
     return sum;
   }, 0);
 
+const trainingDuration = visits.reduce((sum, record) => {
+  if (record.type === "training") {
+    return sum + Number(record.durationMinutes || 0);
+  }
+
+  if (record.type === "competition" && record.warmupOnTrack) {
+    return sum + Number(record.warmupDurationMinutes || 0);
+  }
+
+  return sum;
+}, 0);
+
   // Calculate competition distance, excluding warm-ups
   const competitionDistance = visits.reduce((sum, record) => {
     if (record.type !== "competition") return sum;
@@ -1844,15 +1874,17 @@ if (details && recordsPanel) {
 
   // Display statistics
   stats.textContent =
-    `Visit statistics\n` +
-    `Total visits: ${visits.length}\n` +
-    `Training: ${trainingCount} | ` +
-    `Spectating: ${spectatingCount} | ` +
-    `Competition: ${competitionCount}\n\n` +
-    `Running distance\n` +
-    `Total: ${formatDistance(totalDistance)}\n` +
-    `Training (including warm-ups): ${formatDistance(trainingDistance)}\n` +
-    `Competition: ${formatDistance(competitionDistance)}`;
+  `Visit statistics\n` +
+  `Total visits: ${visits.length}\n` +
+  `Training: ${trainingCount} | ` +
+  `Spectating: ${spectatingCount} | ` +
+  `Competition: ${competitionCount}\n\n` +
+  `Running distance\n` +
+  `Total: ${formatDistance(totalDistance)}\n` +
+  `Training (including warm-ups): ${formatDistance(trainingDistance)}\n` +
+  `Competition: ${formatDistance(competitionDistance)}\n\n` +
+  `Training duration\n` +
+  `Total: ${formatDuration(trainingDuration)}`;
 }
 
 
@@ -2103,10 +2135,42 @@ if (!targetContainer && button &&
       const actions = document.createElement("div"); 
       actions.className = "form-actions";
 
-      const save = document.createElement("button"); 
-      save.type = "submit"; 
-      save.textContent = recordToEdit ? "Update visit" : "Save visit";
-      actions.append(save); form.appendChild(actions);
+const save = document.createElement("button"); 
+save.type = "submit"; 
+save.textContent = recordToEdit ? "Update visit" : "Save visit";
+actions.append(save);
+
+if (recordToEdit) {
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "secondary";
+  cancel.textContent = "Cancel";
+
+  cancel.addEventListener("click", () => {
+    if (targetContainer) {
+      // Visit History page: remove the inline edit form
+      container.remove();
+    } else {
+      // Track Directory: close the form
+      container.style.display = "none";
+      container.replaceChildren();
+
+      const visitToggle = card.querySelector(".track-visit-toggle");
+      if (visitToggle) visitToggle.textContent = "Add visit";
+
+      const recordsPanel = card.querySelector(".track-records-panel");
+      const recordsAreOpen = recordsPanel &&
+        recordsPanel.style.display === "block";
+
+      card.querySelector(".track-details").style.display =
+        recordsAreOpen ? "block" : "none";
+    }
+  });
+
+  actions.append(cancel);
+}
+
+form.appendChild(actions);
 
           const trackEvents = [
             ["50m",50],["60m",60],["100m",100],["200m",200],["400m",400],["800m",800],["1000m",1000],
@@ -2145,15 +2209,58 @@ if (!targetContainer && button &&
      );
         if (mode.value === "training") {
           addField(fields, "Distance (km)", "number", "training-distance", {required:true,min:"0.001",step:"any",placeholder:"e.g. 4.25"});
+          addField(
+            fields,
+             "Start time",
+             "time",
+             "training-start-time",
+             {required:true}
+            );
+
+          addField(
+            fields,
+            "Training duration (HH:MM)",
+            "text",
+            "training-duration",
+          {
+            required:true,
+            placeholder:"e.g. 01:15"
+           }
+        );
         } else if (mode.value === "spectating") {
           addField(fields, "Event name", "text", "event-name", {required:true,placeholder:"e.g. South of England Championships"});
         } else {
           addField(fields, "Competition / meeting name", "text", "event-name", {required:true,placeholder:"e.g. South of England League"});
+
+          
           const warmup = addField(fields, "Did you warm up on the track?", "select", "warmup-on-track", {items:[{value:"no",label:"No"},{value:"yes",label:"Yes"}]});
           const warmupDistanceLabel = document.createElement("label"); warmupDistanceLabel.textContent = "Warm-up distance on track (km)";
           const warmupDistance = document.createElement("input"); warmupDistance.type = "number"; warmupDistance.min = "0"; warmupDistance.step = "any"; warmupDistance.className = "warmup-distance"; warmupDistance.placeholder = "e.g. 2"; warmupDistance.disabled = true;
           warmupDistanceLabel.appendChild(warmupDistance); fields.appendChild(warmupDistanceLabel);
-          warmup.addEventListener("change", () => { warmupDistance.disabled = warmup.value !== "yes"; if (warmup.value !== "yes") warmupDistance.value = ""; });
+          const warmupDuration = addField(
+            fields,
+            "On-track warm-up duration (HH:MM)",
+            "text",
+            "warmup-duration",
+            {
+              placeholder: "e.g. 00:35"
+            }           
+          );
+
+          warmupDuration.disabled = true;
+
+          warmup.addEventListener("change", () => {
+            const enabled = warmup.value === "yes";
+
+            warmupDistance.disabled = !enabled;
+            warmupDuration.disabled = !enabled;
+
+            if (!enabled) {
+              warmupDistance.value = "";
+              warmupDuration.value = "";
+             }
+          });
+
           const eventsHeading = document.createElement("h4"); eventsHeading.textContent = "Events entered"; eventsHeading.style.marginTop = "16px"; fields.appendChild(eventsHeading);
           const eventsList = document.createElement("div"); eventsList.className = "events-list"; fields.appendChild(eventsList);
           const addEventButton = document.createElement("button"); addEventButton.type = "button"; addEventButton.className = "secondary"; addEventButton.textContent = "Add another event"; fields.appendChild(addEventButton);
@@ -2162,6 +2269,8 @@ if (!targetContainer && button &&
             const row = document.createElement("div"); row.className = "event-row";
             const category = addField(row, "Event type", "select", "competition-event-category", {required:true,items:[{value:"track",label:"Track"},{value:"field",label:"Field"}]});
             const eventSelect = addField(row, "Event", "select", "competition-event-select", {required:true,items:trackEvents.map(([name])=>({value:name,label:name}))});
+            const eventStartTime = addField(row, "Event start time", "time", "competition-event-start-time", { required: true });
+            
             const dynamic = document.createElement("div"); dynamic.className = "event-dynamic-fields"; row.appendChild(dynamic);
             const resultContainer = document.createElement("div"); resultContainer.className = "competition-result-container"; row.appendChild(resultContainer);
             function renderEventOptions() {
@@ -2267,12 +2376,29 @@ if (!targetContainer && button &&
         if (recordToEdit.type === "training") {
           const distanceInput = fields.querySelector(".training-distance");
           if (distanceInput) distanceInput.value = (Number(recordToEdit.distanceMetres || 0) / 1000).toString();
-        } else if (recordToEdit.type === "spectating") {
+        } 
+        const startTimeInput = fields.querySelector(".training-start-time");
+if (startTimeInput) {
+  startTimeInput.value = recordToEdit.startTime || "18:45";
+}
+
+const durationInput = fields.querySelector(".training-duration");
+if (durationInput) {
+  const minutes = Number(recordToEdit.durationMinutes || 45);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  durationInput.value =
+    `${String(hours).padStart(2, "0")}:${String(remainingMinutes).padStart(2, "0")}`;
+}
+        else if (recordToEdit.type === "spectating") {
           const nameInput = fields.querySelector(".event-name");
           if (nameInput) nameInput.value = recordToEdit.eventName || "";
         } else if (recordToEdit.type === "competition") {
           const nameInput = fields.querySelector(".event-name");
           if (nameInput) nameInput.value = recordToEdit.eventName || "";
+          
+          
           const warmup = fields.querySelector(".warmup-on-track");
           const warmupDistance = fields.querySelector(".warmup-distance");
           if (warmup) {
@@ -2280,6 +2406,14 @@ if (!targetContainer && button &&
             warmup.dispatchEvent(new Event("change"));
           }
           if (warmupDistance && recordToEdit.warmupOnTrack) warmupDistance.value = (Number(recordToEdit.warmupDistanceMetres || 0) / 1000).toString();
+          const warmupDurationInput =
+            fields.querySelector(".warmup-duration");
+
+          if (warmupDurationInput && recordToEdit.warmupOnTrack) {
+              warmupDurationInput.value =
+               formatDuration(recordToEdit.warmupDurationMinutes || 0);
+       }
+
           const savedEvents = Array.isArray(recordToEdit.events) ? recordToEdit.events : [];
           const eventsList = fields.querySelector(".events-list");
           if (savedEvents.length && eventsList && fields._addEventRow) {
@@ -2288,6 +2422,14 @@ if (!targetContainer && button &&
             savedEvents.forEach((saved, index) => {
               const row = rows[index];
               if (!row) return;
+
+const eventStartTimeInput =
+  row.querySelector(".competition-event-start-time");
+
+if (eventStartTimeInput) {
+  eventStartTimeInput.value = saved.startTime || "19:00";
+}
+
               const category = row.querySelector(".competition-event-category");
               category.value = saved.eventCategory || "track";
               category.dispatchEvent(new Event("change"));
@@ -2335,18 +2477,59 @@ if (!targetContainer && button &&
         const date = fields.querySelector(".visit-date")?.value;
         if (!date) { alert("Please select the visit date."); return; }
         let record;
+        
         if (mode.value === "training") {
-          const km = Number(fields.querySelector(".training-distance").value);
-          if (!Number.isFinite(km) || km <= 0) { alert("Please enter a distance greater than 0 km."); return; }
-          record = createVisitRecord(card.dataset.trackId, "training", {date, distanceMetres:Math.round(km*1000)});
-        } else if (mode.value === "spectating") {
+  const km = Number(fields.querySelector(".training-distance").value);
+  const startTime = fields.querySelector(".training-start-time").value;
+  const durationText = fields.querySelector(".training-duration").value.trim();
+
+  if (!Number.isFinite(km) || km <= 0) {
+    alert("Please enter a distance greater than 0 km.");
+    return;
+  }
+
+  if (!startTime) {
+    alert("Please enter the training start time.");
+    return;
+  }
+
+  const durationMatch = durationText.match(/^(\d{2,}):([0-5]\d)$/);
+
+  if (!durationMatch) {
+    alert("Please enter the training duration in HH:MM format, e.g. 01:15.");
+    return;
+  }
+
+  const durationMinutes =
+    Number(durationMatch[1]) * 60 + Number(durationMatch[2]);
+
+  if (durationMinutes <= 0) {
+    alert("Training duration must be greater than 00:00.");
+    return;
+  }
+
+  record = createVisitRecord(card.dataset.trackId, "training", {
+    date,
+    distanceMetres: Math.round(km * 1000),
+    startTime,
+    durationMinutes
+  });
+}
+        
+        
+        else if (mode.value === "spectating") {
           const eventName = fields.querySelector(".event-name").value.trim();
           if (!eventName) { alert("Please enter the event name."); return; }
           record = createVisitRecord(card.dataset.trackId, "spectating", {date, eventName});
         } else {
           const eventName = fields.querySelector(".event-name").value.trim();
+          
           const rows = [...fields.querySelectorAll(".event-row")];
+
           const events = rows.map(row => {
+             const startTime =
+             row.querySelector(".competition-event-start-time").value;
+
             const category = row.querySelector(".competition-event-category").value;
             const selectedName = row.querySelector(".competition-event-select").value;
             const customName = row.querySelector(".competition-custom-name")?.value.trim();
@@ -2383,12 +2566,20 @@ if (!targetContainer && button &&
             const hurdleSelect = row.querySelector(".competition-hurdle-height");
             let savedHurdle = hurdleSelect?.value || null;
             if (savedHurdle === "Custom") savedHurdle = row.querySelector(".competition-hurdle-height-custom")?.value.trim() || null;
-            return {eventName:displayName, eventCategory:category, selectedEvent:selectedName, result, distanceMetres, hurdleHeight:savedHurdle, implementWeight:weight || null};
+            return { eventName: displayName,
+                     eventCategory: category,
+                     selectedEvent: selectedName,
+                     startTime,
+                     result,
+                     distanceMetres,
+                     hurdleHeight: savedHurdle,
+                    implementWeight: weight || null
+                   };
           });
           if (!eventName) { alert("Please enter the competition name."); return; }
           if (!events.length || events.some((item, index) => {
             const row = rows[index];
-            if (!item.eventName || !item.result) return true;
+            if (!item.eventName || !item.startTime || !item.result) return true;
             if (item.selectedEvent === "1 hour run" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres <= 0)) return true;
             if (item.selectedEvent === "Other" && !row.querySelector(".competition-custom-name")?.value.trim()) return true;
             if (item.selectedEvent === "Other" && item.eventCategory === "track" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres < 0)) return true;
@@ -2400,12 +2591,60 @@ if (!targetContainer && button &&
             }
             return false;
           })) { alert("Please complete each event, result, and any required distance, hurdle height or implement weight. Remove any unused event row."); return; }
-          const warmupOnTrack = fields.querySelector(".warmup-on-track").value === "yes";
-          const warmupKm = warmupOnTrack ? Number(fields.querySelector(".warmup-distance").value) : 0;
-          if (warmupOnTrack && (!Number.isFinite(warmupKm) || warmupKm < 0 || fields.querySelector(".warmup-distance").value.trim() === "")) { alert("Please enter the on-track warm-up distance, or select No."); return; }
-          record = createVisitRecord(card.dataset.trackId, "competition", {
-            date, eventName, events, warmupOnTrack, warmupDistanceMetres:Math.round(warmupKm*1000)
-          });
+          
+          const warmupOnTrack =
+  fields.querySelector(".warmup-on-track").value === "yes";
+
+const warmupKm = warmupOnTrack
+  ? Number(fields.querySelector(".warmup-distance").value)
+  : 0;
+
+const warmupDurationText = warmupOnTrack
+  ? fields.querySelector(".warmup-duration").value.trim()
+  : "";
+
+let warmupDurationMinutes = 0;
+
+if (
+  warmupOnTrack &&
+  (
+    !Number.isFinite(warmupKm) ||
+    warmupKm < 0 ||
+    fields.querySelector(".warmup-distance").value.trim() === ""
+  )
+) {
+  alert("Please enter the on-track warm-up distance.");
+  return;
+}
+
+if (warmupOnTrack) {
+  const durationMatch =
+    warmupDurationText.match(/^(\d{2,}):([0-5]\d)$/);
+
+  if (!durationMatch) {
+    alert("Please enter the warm-up duration in HH:MM format, e.g. 00:35.");
+    return;
+  }
+
+  warmupDurationMinutes =
+    Number(durationMatch[1]) * 60 + Number(durationMatch[2]);
+
+  if (warmupDurationMinutes <= 0) {
+    alert("Warm-up duration must be greater than 00:00.");
+    return;
+  }
+}
+
+record = createVisitRecord(card.dataset.trackId, "competition", {
+  date,
+  eventName,
+  events,
+  warmupOnTrack,
+  warmupDistanceMetres: Math.round(warmupKm * 1000),
+  warmupDurationMinutes
+});
+
+
         }
         record.notes = notesInput.value.trim();
         if (recordToEdit) {
@@ -2462,6 +2701,14 @@ updateAllViews();
      })} km`;
     }
 
+    function formatDuration(minutes) {
+  const totalMinutes = Number(minutes || 0);
+  const hours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(remainingMinutes).padStart(2, "0")}`;
+}
+
     function recordDistanceTotal(record) {
       if (record.type === "training") return Number(record.distanceMetres || 0);
       if (record.type === "competition") return Number(record.warmupDistanceMetres || 0) + (Array.isArray(record.events) ? record.events.reduce((sum, item) => sum + Number(item.distanceMetres || 0), 0) : 0);
@@ -2479,13 +2726,31 @@ updateAllViews();
         const typeNames = {training:"Training",competition:"Competition",spectating:"Spectating"};
         const meta = document.createElement("div"); meta.className = "history-meta";
         const lines = [`${typeNames[record.type] || record.type} · ${record.date || "Date unknown"}`];
-        if (record.type === "training") lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+
+        if (record.type === "training") {
+  lines.push(`Start time: ${record.startTime || "18:45"}`);
+  lines.push(`Duration: ${formatDuration(record.durationMinutes ?? 45)}`);
+  lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+}
+
         if (record.type === "competition") {
-          lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
-          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}`));
-          if (record.warmupOnTrack) lines.push(`On-track warm-up: ${formatDistance(record.warmupDistanceMetres)}`);
-          lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
-        }
+  lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
+
+
+  (record.events || []).forEach(event =>
+  lines.push(
+    `${event.startTime || "19:00"} - ${event.eventName}: ${event.result}`
+  )
+);
+
+  if (record.warmupOnTrack) {
+    lines.push(`On-track warm-up distance: ${formatDistance(record.warmupDistanceMetres)}`);
+    lines.push(`On-track warm-up duration: ${formatDuration(record.warmupDurationMinutes || 0)}`);
+  }
+
+  lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
+}
+
         if (record.type === "spectating") lines.push(`Event: ${record.eventName || "Name not recorded"}`);
         meta.textContent = lines.join("\n"); meta.style.whiteSpace = "pre-line"; item.appendChild(meta);
         if (record.notes && record.notes.trim()) {
@@ -2570,13 +2835,28 @@ function toggleTrackHistory(button) {
         row.appendChild(title);
         const detail = document.createElement("p");
         const lines = [];
-        if (record.type === "training") lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+        if (record.type === "training") {
+  lines.push(`Start time: ${record.startTime || "18:45"}`);
+  lines.push(`Duration: ${formatDuration(record.durationMinutes ?? 45)}`);
+  lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+}
         if (record.type === "competition") {
-          lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
-          (record.events || []).forEach(event => lines.push(`${event.eventName}: ${event.result}`));
-          if (record.warmupOnTrack) lines.push(`On-track warm-up: ${formatDistance(record.warmupDistanceMetres)}`);
-          lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
-        }
+  lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
+
+(record.events || []).forEach(event =>
+  lines.push(
+    `${event.startTime || "19:00"} - ${event.eventName}: ${event.result}`
+  )
+);
+
+  if (record.warmupOnTrack) {
+    lines.push(`On-track warm-up distance: ${formatDistance(record.warmupDistanceMetres)}`);
+    lines.push(`On-track warm-up duration: ${formatDuration(record.warmupDurationMinutes || 0)}`);
+  }
+
+  lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
+}
+
         if (record.type === "spectating") lines.push(`Event: ${record.eventName || "Name not recorded"}`);
         detail.textContent = lines.join("\n");
         row.appendChild(detail);
