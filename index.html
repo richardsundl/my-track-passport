@@ -1,5 +1,5 @@
 <!--
-Richard's Track Passport — version history
+My Track Passport — version history
 index: Original version; basic track visits and running logs.
 index_v1: Unified visit-record data model.
 index_v2: Adds training, competition and spectating records.
@@ -16,7 +16,7 @@ index_v8: Detailed visit records with start time, duration.
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Richard's Track Passport</title>
+  <title>My Track Passport</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin="">
@@ -821,7 +821,7 @@ body {
 <body>
   <main class="container">
     <header>
-      <h1>Richard's Track Passport</h1>
+      <h1>My Track Passport</h1>
       <p>Discover tracks. Collect visits. Explore more.</p>
     </header>
 
@@ -1629,41 +1629,8 @@ body {
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     }
 
-    function normaliseLegacyDate(value) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return value;
-      const match = (value || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (match) return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-      return null;
-    }
-
     function createVisitRecord(trackId, type, fields = {}) {
       return { id: makeId(), trackId, type, date: null, createdAt: new Date().toISOString(), ...fields };
-    }
-
-    // Migrate older running logs only. Old manual check-ins are no longer supported.
-    function migrateLegacyData() {
-      const oldDistanceLogs = loadData("trackDistanceLogs", {});
-      const migrated = [];
-      for (const trackId of Object.keys(oldDistanceLogs)) {
-        const logs = Array.isArray(oldDistanceLogs[trackId]) ? oldDistanceLogs[trackId] : [];
-        for (const log of logs) {
-          const metres = Math.round(Number(
-            log.metres !== undefined ? log.metres : (log.distanceKm || 0) * 1000
-          ));
-          if (!Number.isFinite(metres) || metres <= 0) continue;
-          migrated.push({
-            id: log.id || makeId(),
-            trackId,
-            type: "training",
-            date: normaliseLegacyDate(log.date),
-            createdAt: new Date().toISOString(),
-            distanceMetres: metres,
-            source: "legacy_running_log"
-          });
-        }
-      }
-      localStorage.setItem("visitRecords", JSON.stringify(migrated));
-      return migrated;
     }
 
     const savedVisitRecords = loadData("visitRecords", null);
