@@ -8,7 +8,7 @@ index_v4: Two Pages: Track Directory and Visit History.
 index_v5: JSON backup.
 index_v6: Compact, expandable Track Directory cards with a two-level card layout.
 index_v7: Adds Map/List directory views, coloured visit-status markers and track-detail popups.
-index_v8: Detailed visit records with start time, duration.
+index_v8: Detailed visit records with start time, duration and detailed track cards.
 -->
 
 <!DOCTYPE html>
@@ -895,6 +895,51 @@ body {
   }
 }
 
+/* Track photo gallery */
+.track-gallery {
+  margin: 20px 0;
+}
+
+.track-gallery-images {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #e8ece9;
+}
+
+.track-gallery-images img {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.track-gallery-images img.active {
+  display: block;
+}
+
+.gallery-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 8px;
+}
+
+.gallery-controls button {
+  margin: 0;
+  padding: 5px 12px;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.gallery-counter {
+  font-size: 13px;
+  color: #617168;
+}
+
   </style>
 </head>
 
@@ -1042,6 +1087,49 @@ body {
             distinctive setting for athletics in southwest London.
           </p>
         </section>
+
+        
+<div class="track-gallery" data-index="0">
+
+  <div class="track-gallery-images">
+
+    <img
+      src="images/wimbledon-park-1.webp"
+      alt="Wimbledon Park Athletics Track"
+      class="active">
+
+    <img
+      src="images/wimbledon-park-2.jpg"
+      alt="Wimbledon Park Athletics Track">
+
+    <img
+      src="images/wimbledon-park-3.webp"
+      alt="Wimbledon Park Athletics Track">
+
+  </div>
+
+  <div class="gallery-controls">
+
+    <button type="button"
+      class="secondary"
+      aria-label="Previous photo"
+      onclick="changeTrackPhoto(this, -1)">
+      &#10094;
+    </button>
+
+    <span class="gallery-counter">1 / 3</span>
+
+    <button type="button"
+      class="secondary"
+      aria-label="Next photo"
+      onclick="changeTrackPhoto(this, 1)">
+      &#10095;
+    </button>
+
+  </div>
+
+</div>
+
 
         <section class="track-facilities">
           <h4>Facilities</h4>
@@ -3352,6 +3440,63 @@ function closeMapTrackPopup() {
   document.getElementById("map-track-popup-content").replaceChildren();
   document.body.style.overflow = "";
 }
+
+function changeTrackPhoto(button, direction) {
+  const gallery = button.closest(".track-gallery");
+  if (!gallery) return;
+
+  const images = gallery.querySelectorAll(
+    ".track-gallery-images img"
+  );
+
+  if (images.length === 0) return;
+
+  let index = Number(gallery.dataset.index || 0);
+
+  index = (index + direction + images.length) % images.length;
+
+  gallery.dataset.index = index;
+
+  images.forEach((image, i) => {
+    image.classList.toggle("active", i === index);
+  });
+
+  gallery.querySelector(".gallery-counter").textContent =
+    `${index + 1} / ${images.length}`;
+}
+
+// Mobile photo swiping
+document.addEventListener("touchstart", event => {
+  const gallery = event.target.closest(".track-gallery");
+  if (!gallery) return;
+
+  gallery.dataset.touchStartX =
+    event.touches[0].clientX;
+}, { passive: true });
+
+
+document.addEventListener("touchend", event => {
+  const gallery = event.target.closest(".track-gallery");
+  if (!gallery) return;
+
+  const startX = Number(gallery.dataset.touchStartX);
+  if (!startX) return;
+
+  const endX = event.changedTouches[0].clientX;
+  const difference = endX - startX;
+
+  if (Math.abs(difference) > 40) {
+    const direction = difference < 0 ? 1 : -1;
+
+    const button = gallery.querySelector(
+      ".gallery-controls button:last-child"
+    );
+
+    changeTrackPhoto(button, direction);
+  }
+
+  delete gallery.dataset.touchStartX;
+}, { passive: true });
 
     function updateAllViews() {
       document.querySelectorAll("#track-list-view > .track-card, #map-track-popup-content > .track-card").forEach(card => {
