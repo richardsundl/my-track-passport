@@ -1276,8 +1276,7 @@ async function importBackup(event) {
     function getTrackVisits(trackId) { return visitRecords.filter(record => record.trackId === trackId); }
     function getTrainingRecords(trackId) { return visitRecords.filter(record => record.trackId === trackId && record.type === "training"); }
 
-    const trackNameById = {};
-    document.querySelectorAll(".track-card").forEach(card => { trackNameById[card.dataset.trackId] = card.querySelector("h3").textContent; });
+  const trackNameById = {};
 
 function updateTrackCard(card) {
   const trackId = card.dataset.trackId;
@@ -2475,23 +2474,48 @@ let directoryMapMarkers = [];
 
 const trackMapLocations = {};
 
-document.querySelectorAll(".track-card[data-track-id]").forEach(card => {
+function loadTrackCardData() {
+
+  // Clear existing data
+  Object.keys(trackNameById).forEach(id => delete trackNameById[id]);
+  Object.keys(trackMapLocations).forEach(id => delete trackMapLocations[id]);
+
+  // Read data from all loaded track cards
+  document.querySelectorAll("#track-list-view > .track-card[data-track-id]").forEach(card => {
+
     const trackId = card.dataset.trackId;
-    const lat = Number(card.dataset.lat);
-    const lng = Number(card.dataset.lng);
+
+    // Get track name
+    const heading = card.querySelector("h3");
+    if (heading) {
+      trackNameById[trackId] = heading.textContent.trim();
+    }
+
+    // Get coordinates
+    const latValue = card.dataset.lat;
+    const lngValue = card.dataset.lng;
+
+    const lat = Number(latValue);
+    const lng = Number(lngValue);
 
     if (
-        card.dataset.lat !== undefined &&
-        card.dataset.lng !== undefined &&
-        Number.isFinite(lat) &&
-        Number.isFinite(lng)
+      latValue !== undefined &&
+      lngValue !== undefined &&
+      latValue.trim() !== "" &&
+      lngValue.trim() !== "" &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng)
     ) {
-        trackMapLocations[trackId] = {
-            lat: lat,
-            lng: lng
-        };
+      trackMapLocations[trackId] = {
+        lat: lat,
+        lng: lng
+      };
     }
-});
+
+  });
+
+  console.log("Track card data loaded:", trackMapLocations);
+}
 
 function setDirectoryView(view) {
   directoryView = view === "list" ? "list" : "map";
@@ -2787,6 +2811,7 @@ document.addEventListener("touchend", event => {
 
 async function initApp() {
   await loadTrackCards();
+  loadTrackCardData();
 
   document.getElementById("track-search").addEventListener("input", filterTracks);
   document.getElementById("history-type-filter").addEventListener("change", renderHistory);
