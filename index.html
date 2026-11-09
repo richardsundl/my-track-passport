@@ -288,6 +288,14 @@ index_v10: Adds user geolocation to Track Directory Map.
   font-size: 16px;
 }
 
+/* Match the map location dialog to the map action dialog */
+#location-modal .filter-modal-content {
+  width: min(300px, calc(100vw - 36px));
+  max-width: none;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
 .filter-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -295,8 +303,27 @@ index_v10: Adds user geolocation to Track Directory Map.
   margin-top: 22px;
 }
 
+/* Stack buttons vertically in the location dialog */
+#location-modal .filter-modal-actions {
+  flex-direction: column;
+}
+
+#location-modal .filter-modal-actions button {
+  width: 100%;
+}
+
 .filter-modal-actions button {
   margin: 0;
+}
+
+/* Select on Map button in location dialog */
+.select-on-map-button {
+  display: block;
+  width: 100%;
+  margin: 0 0 18px;
+  padding: 13px;
+  font-size: 16px;
+  font-weight: bold;
 }
 
 #track-search {
@@ -817,14 +844,16 @@ body {
   background: rgba(0,0,0,.48);
 }
 
-/* Track action dialog */
+/* Shared map dialog panel */
 .map-track-actions {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
   padding: 20px;
   background: white;
   border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .map-track-actions h3 {
@@ -840,8 +869,8 @@ body {
 /* The track card itself becomes the popup */
 #map-track-popup-content {
   position: relative;
-  width: min(100%, 620px);
-  max-height: 90vh;
+  width: min(300px, calc(100vw - 36px));
+  max-height: 80vh;
   overflow: auto;
 }
 
@@ -1108,19 +1137,16 @@ body {
 <div id="track-sort-section" class="filter-section">
   <label for="track-sort-select">Sort by</label>
 
-  <select id="track-sort-select" onchange="changeTrackSort(this.value)">
-    <option value="az">A–Z</option>
-    <option value="near">Near me</option>
-    <option value="near-custom" disabled>Near selected location</option>
-  </select>
-
-  <button
-    type="button"
-    class="secondary"
-    onclick="openManualLocationDialog()"
-  >
-    Select Location
-  </button>
+<select
+  id="track-sort-select"
+  onchange="changeTrackSort(this.value)"
+  onpointerdown="prepareTrackSortSelection()"
+  onblur="restoreTrackSortSelection()"
+>
+  <option value="az">A–Z</option>
+  <option value="near">Near me</option>
+  <option value="near-custom">Near selected location</option>
+</select>
 </div>
 
 <div id="track-map-view" role="region" aria-label="Map of athletics tracks"></div>
@@ -1207,10 +1233,18 @@ body {
        style="display:none; font-size:14px; color:#617168;">
     </p>
 
-    <!-- Coordinates entered manually -->
-    <div id="manual-coordinate-inputs">
+<!-- Coordinates entered manually -->
+<div id="manual-coordinate-inputs">
 
-      <label for="custom-latitude">Latitude</label>
+  <button
+    type="button"
+    class="select-on-map-button"
+    onclick="selectLocationOnMap()"
+  >
+    Select on Map
+  </button>
+
+  <label for="custom-latitude">Latitude</label>
       <input
         id="custom-latitude"
         type="number"
@@ -1231,15 +1265,14 @@ body {
     <div class="filter-modal-actions">
 
       <button type="button"
-              class="secondary"
-              onclick="closeLocationModal()">
-        Cancel
-      </button>
-
-      <button type="button"
               id="location-modal-action"
               onclick="confirmCustomLocation()">
         Confirm
+      </button>
+      <button type="button"
+              class="secondary"
+              onclick="closeLocationModal()">
+        Cancel
       </button>
 
     </div>
@@ -2682,12 +2715,11 @@ function locateUser() {
           color: "#ffffff",
           weight: 3,
           fillColor: "#2684ff",
-          fillOpacity: 1
+          fillOpacity: 1,
+          bubblingMouseEvents: false
         }).addTo(directoryMap);
 
-        userLocationMarker.bindPopup(
-  '<a href="#" onclick="showTracksNearMe(); return false;">Tracks near me</a>'
-);
+      userLocationMarker.on("click", openUserLocationDialog);
       }
 
       // Move the map to the user's location
@@ -2867,11 +2899,32 @@ if (distanceMode) {
   cards.forEach(card => list.appendChild(card));
 }
 
+// Prepare the dropdown so the same option can be selected again
+function prepareTrackSortSelection() {
+  const sortSelect = document.getElementById("track-sort-select");
 
-// Handle changes to the Sort by menu
+  if (trackSortOrder === "near-custom") {
+    sortSelect.value = "az";
+  }
+}
+
+
+// Restore the actual sorting selection if the dropdown is closed
+// without making a new selection
+function restoreTrackSortSelection() {
+  const sortSelect = document.getElementById("track-sort-select");
+
+  sortSelect.value = trackSortOrder;
+}
+
 // Handle changes to the Sort by menu
 function changeTrackSort(value) {
 
+// Near selected location mode
+if (value === "near-custom") {
+  openManualLocationDialog();
+  return;
+}
   // A-Z mode
   if (value === "az") {
     trackSortOrder = "az";
@@ -3014,6 +3067,16 @@ document.getElementById("custom-longitude").value =
   modal.style.display = "flex";
 }
 
+// Switch from manual coordinate input to map selection
+function selectLocationOnMap() {
+
+  // Close the current dialog
+  closeLocationModal();
+
+  // Switch to Map view
+  setDirectoryView("map");
+
+}
 
 // Close the location dialog
 function closeLocationModal() {
@@ -3097,8 +3160,8 @@ function showTracksNearMe() {
     return;
   }
 
-  // Close the map popup
-  userLocationMarker.closePopup();
+// Close the shared map dialog
+closeMapTrackPopup();
 
   // Select Near me sorting
   trackSortOrder = "near";
@@ -3267,6 +3330,34 @@ function escapeMapLabel(value) {
     '"': "&quot;",
     "'": "&#39;"
   }[character]));
+}
+
+// Open the dialog when the user clicks their own location
+function openUserLocationDialog() {
+
+  const content = document.getElementById("map-track-popup-content");
+  content.replaceChildren();
+
+  const title = document.createElement("h3");
+  title.textContent = "Your location";
+
+  const nearButton = document.createElement("button");
+  nearButton.textContent = "Track near me";
+  nearButton.addEventListener("click", showTracksNearMe);
+
+  const cancelButton = document.createElement("button");
+  cancelButton.textContent = "Cancel";
+  cancelButton.className = "secondary";
+  cancelButton.addEventListener("click", closeMapTrackPopup);
+
+  const actions = document.createElement("div");
+  actions.className = "map-track-actions";
+
+  actions.append(title, nearButton, cancelButton);
+  content.append(actions);
+
+  document.getElementById("map-track-popup").style.display = "flex";
+  document.body.style.overflow = "hidden";
 }
 
 function openTrackActionDialog(trackId) {
