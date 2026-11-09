@@ -874,6 +874,12 @@ body {
   overflow: auto;
 }
 
+/* Wider layout when displaying a full Track Card */
+#map-track-popup-content.track-card-popup-mode {
+  width: min(620px, calc(100vw - 36px));
+  max-height: 90vh;
+}
+
 /* Popup close button */
 #map-track-popup-content .map-popup-close {
   position: absolute;
@@ -923,7 +929,12 @@ body {
   #map-track-popup-content {
     max-height: 93vh;
   }
+  #map-track-popup-content.track-card-popup-mode {
+    max-height: 93vh;
+  }
+
 }
+
 
 /* Track introduction */
 .track-introduction {
@@ -3338,6 +3349,7 @@ function openUserLocationDialog() {
   const content = document.getElementById("map-track-popup-content");
   content.replaceChildren();
 
+
   const title = document.createElement("h3");
   title.textContent = "Your location";
 
@@ -3449,7 +3461,8 @@ function openMapTrackPopup(trackId) {
 
   const content = document.getElementById("map-track-popup-content");
   content.replaceChildren();
-
+  
+  content.classList.add("track-card-popup-mode");
 
   const clone = original.cloneNode(true);
   clone.classList.add("expanded");
@@ -3509,7 +3522,11 @@ if (cloneVisitToggle) {
 
 function closeMapTrackPopup() {
   document.getElementById("map-track-popup").style.display = "none";
-  document.getElementById("map-track-popup-content").replaceChildren();
+
+  const content = document.getElementById("map-track-popup-content");
+  content.replaceChildren();
+  content.classList.remove("track-card-popup-mode");
+
   document.body.style.overflow = "";
 }
 
