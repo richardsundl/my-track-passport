@@ -11,10 +11,12 @@ index_v7: Adds Map/List directory views, coloured visit-status markers and track
 index_v8: Detailed visit records with start time, duration and detailed track cards.
 index_v9：Separated Track Card HTML into an external tracks.html file. 
           Updated the main JavaScript to load Track Cards dynamically using fetch(), keeping the existing functionality intact.
+index_v10: Adds user geolocation to Track Directory Map.
+            Users can request their current location and
+            display it as a blue marker on the map.
 -->
 
 <!DOCTYPE html>
-<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -301,6 +303,10 @@ index_v9：Separated Track Card HTML into an external tracks.html file.
   margin-bottom: 12px;
 }
 
+#track-sort-section {
+  display: none;
+}
+
 .track-details {
   display: none;
 }
@@ -540,6 +546,53 @@ body {
   display: inline;
 }
 
+/* Near me mode: keep track information on the left
+   and distance on the right */
+#track-list-view.near-me-mode
+.track-card:not(.expanded)
+.track-card-summary .track-info {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0;
+}
+
+/* Distance label */
+.track-distance {
+  display: none;
+  margin-left: auto;
+  padding-left: 10px;
+  color: #d32f2f;
+  font-size: inherit;
+  font-weight: normal;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Show distance only on collapsed cards in Near me mode */
+#track-list-view.near-me-mode
+.track-card:not(.expanded)
+.track-distance {
+  display: inline;
+}
+
+/* Do not show distance on expanded cards */
+#track-list-view.near-me-mode
+.track-card.expanded
+.track-distance {
+  display: none;
+}
+
+/* Do not add the normal information separator before distance */
+.track-info .track-distance::before {
+  content: none !important;
+}
+
+/* Hide distance unless Near me mode is active */
+#track-list-view .track-distance {
+  display: none;
+}
+
 /* Hide N/A information in collapsed cards */
 .track-card:not(.expanded) .track-card-summary .hide-when-collapsed {
   display: none;
@@ -747,6 +800,12 @@ body {
 .map-legend .visited-key { background: #218c4a; }
 .map-legend .not-visited-key { background: #d34b43; }
 
+/* User location button */
+#locate-me-button {
+  display: none;
+  margin: 10px 0;
+}
+
 .map-popup-backdrop {
   position: fixed;
   inset: 0;
@@ -756,6 +815,26 @@ body {
   justify-content: center;
   padding: 18px;
   background: rgba(0,0,0,.48);
+}
+
+/* Track action dialog */
+.map-track-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+}
+
+.map-track-actions h3 {
+  margin: 0 0 8px;
+}
+
+.map-track-actions button {
+  width: 100%;
+  margin: 0;
+  padding: 12px;
 }
 
 /* The track card itself becomes the popup */
@@ -1026,11 +1105,41 @@ body {
   <input id="track-search" type="search" placeholder="Enter a track name...">
 </div>
 
+<div id="track-sort-section" class="filter-section">
+  <label for="track-sort-select">Sort by</label>
+
+  <select id="track-sort-select" onchange="changeTrackSort(this.value)">
+    <option value="az">A–Z</option>
+    <option value="near">Near me</option>
+    <option value="near-custom" disabled>Near selected location</option>
+  </select>
+
+  <button
+    type="button"
+    class="secondary"
+    onclick="openManualLocationDialog()"
+  >
+    Select Location
+  </button>
+</div>
+
 <div id="track-map-view" role="region" aria-label="Map of athletics tracks"></div>
+
+<button
+  type="button"
+  id="locate-me-button"
+  class="secondary"
+  onclick="locateUser()"
+>
+  Locate me 
+</button>
+
+
 <div id="map-legend" class="map-legend">
   <span><i class="visited-key"></i> Visited</span>
   <span><i class="not-visited-key"></i> Not visited</span>
 </div>
+
 <div id="track-list-view">
 
    <!-- Track cards will be loaded from tracks.html -->
@@ -1083,6 +1192,61 @@ body {
 
   </div>
 </div>
+
+<!-- Location selection dialog -->
+<div id="location-modal" class="filter-modal"
+     style="display:none;"
+     onclick="if (event.target === this) closeLocationModal()">
+
+  <div class="filter-modal-content">
+
+    <h3 id="location-modal-title">Select a location</h3>
+
+    <!-- Coordinates displayed after clicking the map -->
+    <p id="map-click-coordinates"
+       style="display:none; font-size:14px; color:#617168;">
+    </p>
+
+    <!-- Coordinates entered manually -->
+    <div id="manual-coordinate-inputs">
+
+      <label for="custom-latitude">Latitude</label>
+      <input
+        id="custom-latitude"
+        type="number"
+        step="any"
+        placeholder="e.g. 51.5072"
+      >
+
+      <label for="custom-longitude">Longitude</label>
+      <input
+        id="custom-longitude"
+        type="number"
+        step="any"
+        placeholder="e.g. -0.1276"
+      >
+
+    </div>
+
+    <div class="filter-modal-actions">
+
+      <button type="button"
+              class="secondary"
+              onclick="closeLocationModal()">
+        Cancel
+      </button>
+
+      <button type="button"
+              id="location-modal-action"
+              onclick="confirmCustomLocation()">
+        Confirm
+      </button>
+
+    </div>
+
+  </div>
+</div>
+
     </section>
    </section>    
 
@@ -2472,7 +2636,83 @@ let directoryView = "map";
 let directoryMap = null;
 let directoryMapMarkers = [];
 
+let userLocationMarker = null;
+let userLocation = null;
+
+// The location currently used for distance sorting
+let sortReferenceLocation = null;
+
+// The location selected by clicking on the map
+let mapClickedLocation = null;
+
+let trackSortOrder = "az";
 const trackMapLocations = {};
+
+function locateUser() {
+
+  // Check whether the browser supports geolocation
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser.");
+    return;
+  }
+
+  const button = document.getElementById("locate-me-button");
+  button.textContent = "Locating...";
+
+  navigator.geolocation.getCurrentPosition(
+
+    function(position) {
+
+      // Get user's coordinates
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      // Save user's current location
+     userLocation = {
+       lat: lat,
+       lng: lng
+    };
+
+      // Create or update the user's location marker
+      if (userLocationMarker) {
+        userLocationMarker.setLatLng([lat, lng]);
+      } else {
+        userLocationMarker = L.circleMarker([lat, lng], {
+          radius: 9,
+          color: "#ffffff",
+          weight: 3,
+          fillColor: "#2684ff",
+          fillOpacity: 1
+        }).addTo(directoryMap);
+
+        userLocationMarker.bindPopup(
+  '<a href="#" onclick="showTracksNearMe(); return false;">Tracks near me</a>'
+);
+      }
+
+      // Move the map to the user's location
+      directoryMap.setView([lat, lng], 13);
+
+      button.textContent = "Locate me";
+
+    },
+
+    function(error) {
+
+      button.textContent = "Locate me";
+
+      alert("Unable to get your location: " + error.message);
+
+    },
+
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+
+  );
+}
 
 function loadTrackCardData() {
 
@@ -2517,14 +2757,378 @@ function loadTrackCardData() {
   console.log("Track card data loaded:", trackMapLocations);
 }
 
+// Calculate distance from the current sorting reference location
+function getTrackDistance(card) {
+
+  const location = trackMapLocations[card.dataset.trackId];
+
+  if (!sortReferenceLocation || !location) {
+    return Infinity;
+  }
+
+  return L.latLng(
+    sortReferenceLocation.lat,
+    sortReferenceLocation.lng
+  ).distanceTo([
+    location.lat,
+    location.lng
+  ]);
+}
+
+// Update the distance displayed on each track card
+function updateTrackDistances() {
+
+  const cards = document.querySelectorAll(
+    "#track-list-view > .track-card"
+  );
+
+  cards.forEach(card => {
+
+    const trackInfo = card.querySelector(
+      ".track-card-summary .track-info"
+    );
+
+    if (!trackInfo) return;
+
+    // Find or create the distance element
+    let distanceElement = trackInfo.querySelector(".track-distance");
+
+    if (!distanceElement) {
+      distanceElement = document.createElement("span");
+      distanceElement.className = "track-distance";
+      trackInfo.appendChild(distanceElement);
+    }
+
+    const distance = getTrackDistance(card);
+
+    // No distance available if location or track coordinates are missing
+    if (!Number.isFinite(distance)) {
+      distanceElement.textContent = "";
+      return;
+    }
+
+    // Display kilometres in Near... mode
+if (trackSortOrder === "near-custom") {
+  distanceElement.textContent =
+    `${(distance / 1000).toFixed(1)} km`;
+} else {
+  // Keep the original display format in Near me mode
+  if (distance < 1000) {
+    distanceElement.textContent =
+      `${Math.round(distance)} m`;
+  } else {
+    distanceElement.textContent =
+      `${(distance / 1000).toFixed(1)} km`;
+  }
+}
+
+  });
+}
+
+
+// Sort track cards
+function applyTrackSort() {
+  const list = document.getElementById("track-list-view");
+    // Enable or disable the Near me display mode
+// Enable distance display in both distance-based modes
+const distanceMode =
+  trackSortOrder === "near" ||
+  trackSortOrder === "near-custom";
+
+list.classList.toggle("near-me-mode", distanceMode);
+
+// Update distances whenever a distance-based mode is active
+if (distanceMode) {
+  updateTrackDistances();
+}
+
+  const cards = Array.from(
+    list.querySelectorAll(":scope > .track-card")
+  );
+
+  cards.sort((a, b) => {
+
+    if (
+      trackSortOrder === "near" ||
+      trackSortOrder === "near-custom"
+       ) {
+       return getTrackDistance(a) - getTrackDistance(b);
+    }
+
+    const nameA = a.querySelector("h3").textContent.trim();
+    const nameB = b.querySelector("h3").textContent.trim();
+
+    return nameA.localeCompare(nameB, undefined, {
+      sensitivity: "base"
+    });
+
+  });
+
+  cards.forEach(card => list.appendChild(card));
+}
+
+
+// Handle changes to the Sort by menu
+// Handle changes to the Sort by menu
+function changeTrackSort(value) {
+
+  // A-Z mode
+  if (value === "az") {
+    trackSortOrder = "az";
+    sortReferenceLocation = null;
+    applyTrackSort();
+    return;
+  }
+
+  // Near me mode
+  if (value === "near") {
+
+    // Check whether the browser supports geolocation
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+
+      document.getElementById("track-sort-select").value =
+        trackSortOrder;
+
+      return;
+    }
+
+    // Get the user's current location
+    navigator.geolocation.getCurrentPosition(
+
+      function(position) {
+
+        // Save the user's coordinates
+        userLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+
+        // Use the current location as the sorting reference
+        sortReferenceLocation = userLocation;
+        trackSortOrder = "near";
+
+        // Update the dropdown
+        document.getElementById("track-sort-select").value =
+          "near";
+
+        // Sort tracks by distance
+        applyTrackSort();
+
+      },
+
+      function(error) {
+
+        // Restore the previous sorting selection
+        document.getElementById("track-sort-select").value =
+          trackSortOrder;
+
+        alert("Unable to get your location: " + error.message);
+
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+
+    );
+
+    return;
+  }
+
+
+}
+
+// Open the location dialog after clicking the map
+function openMapLocationDialog(lat, lng) {
+
+  mapClickedLocation = {
+    lat: lat,
+    lng: lng
+  };
+
+  const modal = document.getElementById("location-modal");
+  const coordinates = document.getElementById(
+    "map-click-coordinates"
+  );
+
+  document.getElementById("location-modal-title").textContent =
+    "Selected location";
+
+  // Display coordinates to one decimal place
+  coordinates.textContent =
+    `Latitude: ${lat.toFixed(1)}, Longitude: ${lng.toFixed(1)}`;
+
+  coordinates.style.display = "block";
+
+  // Hide manual input fields
+  document.getElementById("manual-coordinate-inputs").style.display =
+    "none";
+
+  // Change the action button
+  document.getElementById("location-modal-action").textContent =
+    "Tracks near here";
+
+  // Mark this as a map-click operation
+  modal.dataset.mode = "map";
+
+  modal.style.display = "flex";
+}
+
+
+// Open the dialog for manually entering coordinates
+function openManualLocationDialog() {
+
+  const modal = document.getElementById("location-modal");
+
+  document.getElementById("location-modal-title").textContent =
+    "Find tracks near a location";
+
+  document.getElementById("map-click-coordinates").style.display =
+    "none";
+
+  document.getElementById("manual-coordinate-inputs").style.display =
+    "block";
+
+// Use the latest confirmed location
+const defaultLocation = sortReferenceLocation || mapClickedLocation;
+
+document.getElementById("custom-latitude").value =
+  defaultLocation
+    ? defaultLocation.lat.toFixed(4)
+    : "";
+
+document.getElementById("custom-longitude").value =
+  defaultLocation
+    ? defaultLocation.lng.toFixed(4)
+    : "";
+
+
+  document.getElementById("location-modal-action").textContent =
+    "Find tracks";
+
+  modal.dataset.mode = "manual";
+
+  modal.style.display = "flex";
+}
+
+
+// Close the location dialog
+function closeLocationModal() {
+
+  const modal = document.getElementById("location-modal");
+
+  modal.style.display = "none";
+
+  // Restore the previous sorting selection if the user cancels
+  document.getElementById("track-sort-select").value =
+    trackSortOrder;
+}
+
+
+// Confirm the selected or manually entered location
+function confirmCustomLocation() {
+
+  const modal = document.getElementById("location-modal");
+
+  // Map-click mode
+  if (modal.dataset.mode === "map") {
+
+    if (!mapClickedLocation) return;
+
+    sortReferenceLocation = mapClickedLocation;
+    trackSortOrder = "near-custom";
+
+  } else {
+
+    // Manual-input mode
+    const lat = Number(
+      document.getElementById("custom-latitude").value
+    );
+
+    const lng = Number(
+      document.getElementById("custom-longitude").value
+    );
+
+    if (
+      document.getElementById("custom-latitude").value.trim() === "" ||
+      document.getElementById("custom-longitude").value.trim() === "" ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      alert("Please enter valid latitude and longitude values.");
+      return;
+    }
+
+    sortReferenceLocation = {
+      lat: lat,
+      lng: lng
+    };
+
+    trackSortOrder = "near-custom";
+  }
+
+  // Close dialog
+  modal.style.display = "none";
+
+  // Switch to Near... sorting
+  document.getElementById("track-sort-select").value =
+    "near-custom";
+
+  // Switch to List view
+  // This also applies the distance sorting
+  setDirectoryView("list");
+
+  // Scroll to the top
+  window.scrollTo(0, 0);
+}
+
+// Open the track list sorted by distance
+function showTracksNearMe() {
+
+  if (!userLocation) {
+    alert("Please locate your position first.");
+    return;
+  }
+
+  // Close the map popup
+  userLocationMarker.closePopup();
+
+  // Select Near me sorting
+  trackSortOrder = "near";
+  sortReferenceLocation = userLocation;
+
+  document.getElementById("track-sort-select").value = "near";
+
+  // Switch to List view
+  setDirectoryView("list");
+
+  // Sort tracks by distance
+  applyTrackSort();
+
+  // Scroll to the directory list
+  window.scrollTo(0, 0);
+}
+
 function setDirectoryView(view) {
   directoryView = view === "list" ? "list" : "map";
   const isMap = directoryView === "map";
 
   document.getElementById("track-map-view").style.display = isMap ? "block" : "none";
   document.getElementById("map-legend").style.display = isMap ? "flex" : "none";
+  document.getElementById("locate-me-button").style.display =
+  isMap ? "block" : "none";
+  
   document.getElementById("track-list-view").style.display = isMap ? "none" : "block";
   document.getElementById("track-search-section").style.display = isMap ? "none" : "block";
+  document.getElementById("track-sort-section").style.display =
+  isMap ? "none" : "block";
 
   document.getElementById("map-view-button").classList.toggle("active", isMap);
   document.getElementById("list-view-button").classList.toggle("active", !isMap);
@@ -2536,12 +3140,27 @@ function setDirectoryView(view) {
       refreshDirectoryMap();
     }, 100);
   }
+  if (!isMap) {
+  document.getElementById("track-sort-select").value = trackSortOrder;
+  applyTrackSort();
+}
 }
 
 function initialiseDirectoryMap() {
   if (directoryMap || !window.L) return;
 
   directoryMap = L.map("track-map-view").setView([51.48, -0.13], 10);
+  
+    // Open a location dialog when the user clicks anywhere on the map
+  directoryMap.on("click", function(event) {
+
+    openMapLocationDialog(
+      event.latlng.lat,
+      event.latlng.lng
+    );
+
+  });
+
   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 19,
     attribution: 'Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors'
@@ -2620,7 +3239,7 @@ function refreshDirectoryMap() {
 
     const marker = L.marker([location.lat, location.lng], { icon })
       .addTo(directoryMap)
-      .on("click", () => openMapTrackPopup(card.dataset.trackId));
+      .on("click", () => openTrackActionDialog(card.dataset.trackId));
 
     directoryMapMarkers.push(marker);
   });
@@ -2650,6 +3269,87 @@ function escapeMapLabel(value) {
   }[character]));
 }
 
+function openTrackActionDialog(trackId) {
+
+  const original = document.querySelector(
+    `#track-list-view > .track-card[data-track-id="${trackId}"]`
+  );
+  if (!original) return;
+
+  const trackName = original.querySelector("h3").textContent.trim();
+
+  const content = document.getElementById("map-track-popup-content");
+  content.replaceChildren();
+
+  // Create the dialog title
+  const title = document.createElement("h3");
+  title.textContent = trackName;
+
+  // Create the three action buttons
+  const viewButton = document.createElement("button");
+  viewButton.textContent = "View";
+  viewButton.addEventListener("click", () => {
+    openMapTrackPopup(trackId);
+  });
+
+  const nearButton = document.createElement("button");
+  nearButton.textContent = "Tracks near here";
+  nearButton.addEventListener("click", () => {
+    showTracksNearTrack(trackId);
+  });
+
+  const cancelButton = document.createElement("button");
+  cancelButton.textContent = "Cancel";
+  cancelButton.className = "secondary";
+  cancelButton.addEventListener("click", closeMapTrackPopup);
+
+  // Arrange the dialog
+const actions = document.createElement("div");
+actions.className = "map-track-actions";
+
+actions.append(title, viewButton, nearButton, cancelButton);
+
+content.append(actions);
+
+  // Display the dialog
+  document.getElementById("map-track-popup").style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function showTracksNearTrack(trackId) {
+
+  // Get the selected track's coordinates
+  const location = trackMapLocations[trackId];
+  if (!location) return;
+
+  // Use this track as the sorting reference
+  sortReferenceLocation = {
+    lat: location.lat,
+    lng: location.lng
+  };
+
+  // Save the selected location for future use
+  mapClickedLocation = {
+    lat: location.lat,
+    lng: location.lng
+  };
+
+  // Set Near... sorting mode
+  trackSortOrder = "near-custom";
+
+  document.getElementById("track-sort-select").value =
+    "near-custom";
+
+  // Close the action dialog
+  closeMapTrackPopup();
+
+  // Switch to List view and sort by distance
+  setDirectoryView("list");
+
+  // Scroll to the top
+  window.scrollTo(0, 0);
+}
+
 function openMapTrackPopup(trackId) {
   const original = document.querySelector(
     `#track-list-view > .track-card[data-track-id="${trackId}"]`
@@ -2665,6 +3365,10 @@ function openMapTrackPopup(trackId) {
   clone.dataset.mapPopupClone = "true";
   clone.querySelectorAll("[id]").forEach(element => element.removeAttribute("id"));
 
+    // Remove distance information from the map popup
+  clone.querySelectorAll(".track-distance").forEach(element => {
+    element.remove();
+  });
 // Reset the records panel state in the popup clone
 const cloneDetails = clone.querySelector(".track-details");
 const cloneRecordsPanel = clone.querySelector(".track-records-panel");
