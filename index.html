@@ -17,6 +17,7 @@ index_v10: Adds user geolocation to Track Directory Map.
 -->
 
 <!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -42,7 +43,7 @@ index_v10: Adds user geolocation to Track Directory Map.
     }
 
     header {
-      background: #0306e3;
+      background: #0b1f4d;
       color: white;
       padding: 28px 24px;
       border-radius: 16px;
@@ -351,6 +352,14 @@ index_v10: Adds user geolocation to Track Directory Map.
   width: 100%;
   display: block;
   box-sizing: border-box;
+}
+
+.track-location-map {
+  width: 100%;
+  height: 220px;
+  border: 0;
+  border-radius: 8px;
+  background: #e9eee9;
 }
 
 .location-section h4 {
@@ -2592,15 +2601,50 @@ function toggleTrackCard(trigger) {
   const summary = card.querySelector(".track-card-summary");
   if (summary) summary.setAttribute("aria-expanded", String(isExpanded));
 
-  // Reload this map only after its previously hidden card has become visible.
+  // Initialise the embedded map only after its card becomes visible.
   if (isExpanded) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const map = card.querySelector(".location-section iframe");
-        if (map) map.src = map.src;
+        initialiseTrackLocationMaps(card);
       });
     });
   }
+}
+
+const trackLocationMaps = new WeakMap();
+
+function initialiseTrackLocationMaps(root) {
+  if (!window.L || !root) return;
+
+  root.querySelectorAll(".track-location-map").forEach(container => {
+    if (trackLocationMaps.has(container)) {
+      trackLocationMaps.get(container).invalidateSize();
+      return;
+    }
+
+    const card = container.closest(".track-card");
+    const lat = Number(card?.dataset.lat);
+    const lng = Number(card?.dataset.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const map = L.map(container, { scrollWheelZoom: false }).setView([lat, lng], 16);
+    const streetLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors'
+    });
+    const satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+    });
+
+    streetLayer.addTo(map);
+    L.control.layers({ "Street map": streetLayer, "Satellite": satelliteLayer }, null, {
+      position: "topright",
+      collapsed: true
+    }).addTo(map);
+    L.marker([lat, lng]).addTo(map);
+    trackLocationMaps.set(container, map);
+  });
 }
 
 function sortTrackCards() {
@@ -3235,10 +3279,26 @@ function initialiseDirectoryMap() {
 
   });
 
-  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+  const streetLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 19,
     attribution: 'Tiles &copy; Esri &mdash; Sources: Esri, HERE, Garmin, FAO, NOAA, USGS, &copy; OpenStreetMap contributors'
+  });
+
+  const satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+  });
+
+  streetLayer.addTo(directoryMap);
+
+  L.control.layers({
+    "Street map": streetLayer,
+    "Satellite": satelliteLayer
+  }, null, {
+    position: "topright",
+    collapsed: false
   }).addTo(directoryMap);
+
 const scaleControl = L.control.scale({
   position: 'bottomleft',
   metric: true,
@@ -3504,11 +3564,12 @@ if (cloneVisitToggle) {
 
   clone.insertBefore(closeButton, clone.firstChild);
 
-  // Remove the embedded map from the popup
-  clone.querySelector(".location-section iframe")?.remove();
-
-  // Remove the OpenStreetMap link
-  clone.querySelector(".location-section a")?.closest("p")?.remove();
+  // Clear any copied Leaflet markup so the popup gets its own map instance.
+  clone.querySelectorAll(".track-location-map").forEach(mapContainer => {
+    mapContainer.replaceChildren();
+    mapContainer.classList.remove("leaflet-container");
+    mapContainer.removeAttribute("style");
+  });
 
   const summary = clone.querySelector(".track-card-summary");
 
@@ -3516,6 +3577,7 @@ if (cloneVisitToggle) {
   if (summary) summary.setAttribute("aria-expanded", "true");
 
   content.appendChild(clone);
+  requestAnimationFrame(() => initialiseTrackLocationMaps(clone));
   document.getElementById("map-track-popup").style.display = "flex";
   document.body.style.overflow = "hidden";
 }
@@ -3612,6 +3674,14 @@ document.addEventListener("touchend", event => {
     const trackCardsHTML = await response.text();
 
     document.getElementById("track-list-view").innerHTML = trackCardsHTML;
+
+    document.querySelectorAll("#track-list-view .location-section iframe").forEach(iframe => {
+      const mapContainer = document.createElement("div");
+      mapContainer.className = "track-location-map";
+      mapContainer.setAttribute("role", "region");
+      mapContainer.setAttribute("aria-label", iframe.title || "Track location map");
+      iframe.replaceWith(mapContainer);
+    });
 
     console.log("Track cards loaded successfully.");
   } catch (error) {
