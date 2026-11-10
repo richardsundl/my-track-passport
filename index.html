@@ -362,6 +362,23 @@ index_v10: Adds user geolocation to Track Directory Map.
   background: #e9eee9;
 }
 
+/* Keep each basemap radio button and its label on one line. */
+.track-location-map .leaflet-control-layers-base label,
+#track-map-view .leaflet-control-layers-base label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.track-location-map .leaflet-control-layers-base input,
+#track-map-view .leaflet-control-layers-base input {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+}
+
 .location-section h4 {
   margin: 0 0 10px;
 }
@@ -3564,12 +3581,9 @@ if (cloneVisitToggle) {
 
   clone.insertBefore(closeButton, clone.firstChild);
 
-  // Clear any copied Leaflet markup so the popup gets its own map instance.
-  clone.querySelectorAll(".track-location-map").forEach(mapContainer => {
-    mapContainer.replaceChildren();
-    mapContainer.classList.remove("leaflet-container");
-    mapContainer.removeAttribute("style");
-  });
+  // Keep the map view popup compact; location maps are shown in list cards.
+  clone.querySelector(".track-location-map")?.remove();
+  clone.querySelector(".location-section a")?.closest("p")?.remove();
 
   const summary = clone.querySelector(".track-card-summary");
 
@@ -3577,7 +3591,6 @@ if (cloneVisitToggle) {
   if (summary) summary.setAttribute("aria-expanded", "true");
 
   content.appendChild(clone);
-  requestAnimationFrame(() => initialiseTrackLocationMaps(clone));
   document.getElementById("map-track-popup").style.display = "flex";
   document.body.style.overflow = "hidden";
 }
