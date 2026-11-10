@@ -379,6 +379,16 @@ index_v10: Adds user geolocation to Track Directory Map.
   margin: 0;
 }
 
+/* Hide desktop scrollbar buttons beside the short basemap list. */
+.leaflet-control-layers-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.leaflet-control-layers-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .location-section h4 {
   margin: 0 0 10px;
 }
@@ -806,11 +816,14 @@ body {
 }
 .track-map-marker {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  position: absolute;
+  left: 0;
+  top: 0;
   width: max-content;
-  max-width: 235px;
-  transform: translate(-8px, -50%);
+  transform: translate(-50%, -8px);
 }
 .track-map-marker .marker-dot {
   flex: 0 0 16px;
@@ -827,13 +840,16 @@ body {
   display: none;
 }
 .track-map-marker .marker-label {
-  padding: 4px 7px;
-  border-radius: 5px;
-  background: rgba(255,255,255,.96);
+  padding: 0;
+  background: transparent;
   color: #20352c;
   font: 600 12px/1.25 Arial, sans-serif;
-  white-space: normal;
-  box-shadow: 0 1px 4px rgba(0,0,0,.22);
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white, 1px 1px 2px white;
+}
+.track-map-marker .marker-label-line {
+  display: block;
 }
 .map-legend {
   display: none;
@@ -941,6 +957,11 @@ body {
 #map-track-popup-content .track-card-content {
   display: block !important;
   padding: 0 18px 16px;
+}
+
+/* Let facility rows grow when long notes wrap inside the map popup. */
+#map-track-popup-content .facilities-grid {
+  grid-auto-rows: minmax(32px, auto);
 }
 
 #map-track-popup-content .collapse-track-card {
@@ -3378,14 +3399,14 @@ function refreshDirectoryMap() {
     const markerHtml = `
       <div class="track-map-marker ${isVisited ? "visited" : "not-visited"}">
         <span class="marker-dot"></span>
-        <span class="marker-label">${escapeMapLabel(name)}</span>
+        <span class="marker-label">${formatTrackMapLabel(name)}</span>
       </div>`;
 
     const icon = L.divIcon({
       className: "",
       html: markerHtml,
-      iconSize: [230, 32],
-      iconAnchor: [8, 16]
+      iconSize: [1, 1],
+      iconAnchor: [0, 0]
     });
 
     const marker = L.marker([location.lat, location.lng], { icon })
@@ -3418,6 +3439,22 @@ function escapeMapLabel(value) {
     '"': "&quot;",
     "'": "&#39;"
   }[character]));
+}
+
+function formatTrackMapLabel(name) {
+  const characters = Array.from(name);
+  if (characters.length <= 16) {
+    return `<span class="marker-label-line">${escapeMapLabel(name)}</span>`;
+  }
+
+  let splitAt = 16;
+  const preferredSpace = name.lastIndexOf(" ", splitAt);
+  if (preferredSpace >= 8) splitAt = preferredSpace;
+
+  const firstLine = name.slice(0, splitAt).trim();
+  const secondLine = name.slice(splitAt).trim();
+  return `<span class="marker-label-line">${escapeMapLabel(firstLine)}</span>` +
+    `<span class="marker-label-line">${escapeMapLabel(secondLine)}</span>`;
 }
 
 // Open the dialog when the user clicks their own location
