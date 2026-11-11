@@ -14,6 +14,7 @@ index_v9：Separated Track Card HTML into an external tracks.html file.
 index_v10: Adds user geolocation to Track Directory Map.
             Users can request their current location and
             display it as a blue marker on the map.
+index_v11: Changes the data management model.
 -->
 
 <!DOCTYPE html>
@@ -1533,6 +1534,38 @@ async function importBackup(event) {
 
   const trackNameById = {};
 
+function calculateStatistics(records) {
+  const trainingDistance = records.reduce((sum, record) => {
+    if (record.type === "training") {
+      return sum + Number(record.distanceMetres || 0);
+    }
+
+    if (record.type === "competition" && record.warmupOnTrack) {
+      return sum + Number(record.warmupDistanceMetres || 0);
+    }
+
+    return sum;
+  }, 0);
+
+  const competitionDistance = records.reduce((sum, record) => {
+    if (record.type !== "competition") return sum;
+
+    const eventDistance = Array.isArray(record.events)
+      ? record.events.reduce(
+          (eventSum, event) =>
+            eventSum + Number(event.distanceMetres || 0),
+          0
+        )
+      : 0;
+
+    return sum + eventDistance;
+  }, 0);
+
+  const totalDistance = trainingDistance + competitionDistance;
+
+  return { trainingDistance, competitionDistance, totalDistance };
+}
+
 function updateTrackCard(card) {
   const trackId = card.dataset.trackId;
   const status = card.querySelector(".status");
@@ -1555,18 +1588,8 @@ function updateTrackCard(card) {
     record => record.type === "competition"
   ).length;
 
-  // Calculate training distance, including warm-ups
-  const trainingDistance = visits.reduce((sum, record) => {
-    if (record.type === "training") {
-      return sum + Number(record.distanceMetres || 0);
-    }
-
-    if (record.type === "competition" && record.warmupOnTrack) {
-      return sum + Number(record.warmupDistanceMetres || 0);
-    }
-
-    return sum;
-  }, 0);
+  const { trainingDistance, competitionDistance, totalDistance } =
+    calculateStatistics(visits);
 
 const trainingDuration = visits.reduce((sum, record) => {
   if (record.type === "training") {
@@ -1579,24 +1602,6 @@ const trainingDuration = visits.reduce((sum, record) => {
 
   return sum;
 }, 0);
-
-  // Calculate competition distance, excluding warm-ups
-  const competitionDistance = visits.reduce((sum, record) => {
-    if (record.type !== "competition") return sum;
-
-    const eventDistance = Array.isArray(record.events)
-      ? record.events.reduce(
-          (eventSum, event) =>
-            eventSum + Number(event.distanceMetres || 0),
-          0
-        )
-      : 0;
-
-    return sum + eventDistance;
-  }, 0);
-
-  // Total running distance
-  const totalDistance = trainingDistance + competitionDistance;
 
   // Create the statistics area once per card
 // Create the statistics area inside track details
@@ -1646,36 +1651,8 @@ function updateCount() {
     record => record.type === "spectating"
   ).length;
 
-  // Calculate training distance, including competition warm-ups
-  const trainingDistance = visitRecords.reduce((sum, record) => {
-    if (record.type === "training") {
-      return sum + Number(record.distanceMetres || 0);
-    }
-
-    if (record.type === "competition" && record.warmupOnTrack) {
-      return sum + Number(record.warmupDistanceMetres || 0);
-    }
-
-    return sum;
-  }, 0);
-
-  // Calculate competition distance, excluding warm-ups
-  const competitionDistance = visitRecords.reduce((sum, record) => {
-    if (record.type !== "competition") return sum;
-
-    const eventDistance = Array.isArray(record.events)
-      ? record.events.reduce(
-          (eventSum, event) =>
-            eventSum + Number(event.distanceMetres || 0),
-          0
-        )
-      : 0;
-
-    return sum + eventDistance;
-  }, 0);
-
-  // Total running distance on track
-  const totalDistance = trainingDistance + competitionDistance;
+  const { trainingDistance, competitionDistance, totalDistance } =
+    calculateStatistics(visitRecords);
 
   // Update the display
   document.getElementById("track-count").textContent = cards.length;
@@ -1745,49 +1722,44 @@ function applyFilters() {
 
 
 // Filter track cards
-function filterTracks() {
+function matchesTrackFilters(card, includeSearch = false) {
+  const isVisited = card.querySelector(".status").classList.contains("visited");
+
+  const matchesVisited =
+    appliedFilters.visited === "all" ||
+    (appliedFilters.visited === "visited" && isVisited) ||
+    (appliedFilters.visited === "not-visited" && !isVisited);
+
+  const matchesEnvironment =
+    appliedFilters.environment === "all" ||
+    card.dataset.environment === appliedFilters.environment;
+
+  const matchesSurface =
+    appliedFilters.surface === "all" ||
+    card.dataset.surface === appliedFilters.surface;
+
+  const matchesLength =
+    appliedFilters.length === "all" ||
+    (appliedFilters.length === "other"
+      ? card.dataset.length !== "200m" && card.dataset.length !== "400m"
+      : card.dataset.length === appliedFilters.length);
+
+  if (!matchesVisited || !matchesEnvironment || !matchesSurface || !matchesLength) {
+    return false;
+  }
+
+  if (!includeSearch) return true;
+
   const searchTerm = document.getElementById("track-search").value
     .trim()
     .toLowerCase();
 
+  return card.querySelector("h3").textContent.toLowerCase().includes(searchTerm);
+}
+
+function filterTracks() {
   document.querySelectorAll("#track-list-view > .track-card").forEach(card => {
-
-    // Check whether the track has been visited
-    const isVisited = card.querySelector(".status").classList.contains("visited");
-
-    const matchesVisited =
-      appliedFilters.visited === "all" ||
-      (appliedFilters.visited === "visited" && isVisited) ||
-      (appliedFilters.visited === "not-visited" && !isVisited);
-
-    // Check indoor / outdoor
-    const matchesEnvironment =
-      appliedFilters.environment === "all" ||
-      card.dataset.environment === appliedFilters.environment;
-
-    // Check track surface
-    const matchesSurface =
-      appliedFilters.surface === "all" ||
-      card.dataset.surface === appliedFilters.surface;
-
-    // Check track length
-    const matchesLength =
-      appliedFilters.length === "all" ||
-      card.dataset.length === appliedFilters.length;
-
-    // Check search term
-    const matchesSearch =
-      card.querySelector("h3").textContent.toLowerCase().includes(searchTerm);
-
-    // Display the card only if all conditions match
-    card.style.display =
-      matchesVisited &&
-      matchesEnvironment &&
-      matchesSurface &&
-      matchesLength &&
-      matchesSearch
-        ? ""
-        : "none";
+    card.style.display = matchesTrackFilters(card, true) ? "" : "none";
   });
 
   refreshDirectoryMap();
@@ -2774,30 +2746,41 @@ let mapClickedLocation = null;
 let trackSortOrder = "az";
 const trackMapLocations = {};
 
-function locateUser() {
-
-  // Check whether the browser supports geolocation
+function getUserCurrentLocation(onSuccess, onError) {
   if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your browser.");
+    const error = new Error("Geolocation is not supported by your browser.");
+    error.code = "GEOLOCATION_UNSUPPORTED";
+    onError(error);
     return;
   }
 
+  navigator.geolocation.getCurrentPosition(
+    function(position) {
+      onSuccess({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      });
+    },
+    onError,
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+function locateUser() {
   const button = document.getElementById("locate-me-button");
   button.textContent = "Locating...";
 
-  navigator.geolocation.getCurrentPosition(
-
-    function(position) {
-
-      // Get user's coordinates
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+  getUserCurrentLocation(
+    function(location) {
+      const lat = location.lat;
+      const lng = location.lng;
 
       // Save user's current location
-     userLocation = {
-       lat: lat,
-       lng: lng
-    };
+      userLocation = location;
 
       // Create or update the user's location marker
       if (userLocationMarker) {
@@ -2823,19 +2806,11 @@ function locateUser() {
     },
 
     function(error) {
-
       button.textContent = "Locate me";
-
-      alert("Unable to get your location: " + error.message);
-
-    },
-
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
+      alert(error.code === "GEOLOCATION_UNSUPPORTED"
+        ? error.message
+        : "Unable to get your location: " + error.message);
     }
-
   );
 }
 
@@ -3028,27 +3003,10 @@ if (value === "near-custom") {
 
   // Near me mode
   if (value === "near") {
-
-    // Check whether the browser supports geolocation
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
-
-      document.getElementById("track-sort-select").value =
-        trackSortOrder;
-
-      return;
-    }
-
-    // Get the user's current location
-    navigator.geolocation.getCurrentPosition(
-
-      function(position) {
-
+    getUserCurrentLocation(
+      function(location) {
         // Save the user's coordinates
-        userLocation = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
+        userLocation = location;
 
         // Use the current location as the sorting reference
         sortReferenceLocation = userLocation;
@@ -3064,21 +3022,14 @@ if (value === "near-custom") {
       },
 
       function(error) {
-
         // Restore the previous sorting selection
         document.getElementById("track-sort-select").value =
           trackSortOrder;
 
-        alert("Unable to get your location: " + error.message);
-
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        alert(error.code === "GEOLOCATION_UNSUPPORTED"
+          ? error.message
+          : "Unable to get your location: " + error.message);
       }
-
     );
 
     return;
@@ -3371,24 +3322,7 @@ function refreshDirectoryMap() {
     document.querySelectorAll("#track-list-view > .track-card")
   );
 
-  const visibleCards = cards.filter(card => {
-    const isVisited = card.querySelector(".status").classList.contains("visited");
-    const matchesVisited =
-      appliedFilters.visited === "all" ||
-      (appliedFilters.visited === "visited" && isVisited) ||
-      (appliedFilters.visited === "not-visited" && !isVisited);
-    const matchesEnvironment =
-      appliedFilters.environment === "all" ||
-      card.dataset.environment === appliedFilters.environment;
-    const matchesSurface =
-      appliedFilters.surface === "all" ||
-      card.dataset.surface === appliedFilters.surface;
-    const matchesLength =
-      appliedFilters.length === "all" ||
-      card.dataset.length === appliedFilters.length;
-
-    return matchesVisited && matchesEnvironment && matchesSurface && matchesLength;
-  });
+  const visibleCards = cards.filter(card => matchesTrackFilters(card));
 
   visibleCards.forEach(card => {
     const location = trackMapLocations[card.dataset.trackId];
