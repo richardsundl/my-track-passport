@@ -569,10 +569,70 @@ body {
   text-decoration: underline;
 }
 
-/* Compact, expandable Track Directory cards */
+/* Track Directory list rows and dedicated track detail page */
 .track-card {
   padding: 0;
   overflow: hidden;
+}
+
+#track-list-view .track-card-content { display: none !important; }
+#track-list-view .track-card-summary {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+#track-list-view .track-card-summary:hover { background: #f8faf8; }
+#track-list-view .track-card-summary h3 { margin: 0 0 5px; font-size: 16px; }
+#track-list-view .track-card-summary .track-info { margin: 0; font-size: 13px; line-height: 1.6; }
+#track-list-view .track-card-summary .track-info span { display: inline; }
+#track-list-view .hide-when-collapsed { display: none !important; }
+
+.directory-page.track-detail-open > :not(#track-detail-page) { display: none !important; }
+#track-detail-page { display: none; }
+.directory-page.track-detail-open #track-detail-page { display: block; }
+.track-detail-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 12px;
+  margin: -8px -8px 18px;
+  padding: 10px 8px;
+  background: rgba(255,255,255,.96);
+  border-bottom: 1px solid #e4e8e5;
+}
+.track-detail-nav h2 { margin: 0; text-align: center; font-size: 18px; }
+.track-detail-back {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 27px;
+  line-height: 1;
+}
+#track-detail-content > .track-card { max-width: 900px; margin: 0 auto 24px; }
+#track-detail-content > .track-card .track-card-summary { cursor: default; }
+#track-detail-content > .track-card .track-card-content { display: block !important; }
+#track-detail-content > .track-card .track-details { display: block; }
+#track-detail-content .track-facilities {
+  margin-bottom: 26px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e1e8e2;
+}
+#track-detail-content .status { margin-top: 12px; }
+@media (max-width: 600px) {
+  .track-detail-nav { margin-left: -14px; margin-right: -14px; padding-left: 14px; padding-right: 14px; }
+  #track-detail-content > .track-card { margin-left: -8px; margin-right: -8px; }
 }
 
 .track-card-summary {
@@ -1004,7 +1064,7 @@ body {
 .facilities-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 32px;
+  grid-auto-rows: minmax(32px, auto);
   column-gap: 24px;
   row-gap: 20px;
   padding-bottom: 20px;
@@ -1015,6 +1075,8 @@ body {
   align-items: flex-start;
   gap: 10px;
 }
+
+.facility-item > div { min-width: 0; }
 
 .facility-status {
   flex: 0 0 20px;
@@ -1054,6 +1116,9 @@ body {
   font-size: 12px;
   line-height: 1.4;
 }
+
+.facility-name,
+.facility-note { overflow-wrap: anywhere; }
 
 @media (max-width: 600px) {
   .facilities-grid {
@@ -1227,6 +1292,15 @@ body {
 
    <!-- Track cards will be loaded from tracks.html -->
 </div>
+
+<section id="track-detail-page" aria-label="Track details" aria-live="polite">
+  <div class="track-detail-nav">
+    <button type="button" class="secondary track-detail-back" aria-label="Back to Track Directory" onclick="closeTrackDetailPage()">‹</button>
+    <h2>Track details</h2>
+    <span aria-hidden="true"></span>
+  </div>
+  <div id="track-detail-content"></div>
+</section>
 
 <div id="filter-modal" class="filter-modal" style="display:none;">
   <div class="filter-modal-content">
@@ -1941,7 +2015,11 @@ if (!targetContainer && button &&
   button.textContent = "Cancel";
 }
       const form = document.createElement("form"); form.className = "visit-form";
-      const heading = document.createElement("h4"); heading.textContent = `${recordToEdit ? "Edit visit" : "Add visit"} · ${card.querySelector("h3").textContent}`; form.appendChild(heading);
+      const trackName = card.dataset.trackName ||
+        card.querySelector(".track-card-summary h3")?.textContent.trim() ||
+        card.querySelector("h3")?.textContent.trim() ||
+        "Track";
+      const heading = document.createElement("h4"); heading.textContent = `${recordToEdit ? "Edit visit" : "Add visit"} · ${trackName}`; form.appendChild(heading);
       const mode = addField(form, "Visit type", "select", "visit-type", {items:[
         {value:"training",label:"Training"},{value:"competition",label:"Competition"},{value:"spectating",label:"Spectating"}
       ]});
@@ -2711,18 +2789,66 @@ function toggleTrackHistory(button) {
 function toggleTrackCard(trigger) {
   const card = trigger.closest(".track-card");
   if (!card) return;
+  openTrackActionDialog(card.dataset.trackId, "list");
+}
 
-  const isExpanded = card.classList.toggle("expanded");
+let trackDetailReturnScrollTop = 0;
+
+function openTrackDetailPage(trackId, openVisit = false) {
+  const original = document.querySelector(
+    `#track-list-view > .track-card[data-track-id="${trackId}"]`
+  );
+  if (!original) return;
+
+  const content = document.getElementById("track-detail-content");
+  content.replaceChildren();
+  const card = original.cloneNode(true);
+  const name = card.querySelector("h3")?.textContent.trim() || "Track details";
+  card.dataset.trackName = name;
+  card.classList.add("expanded");
+  card.dataset.trackDetailClone = "true";
+  card.querySelectorAll("[id]").forEach(element => element.removeAttribute("id"));
   const summary = card.querySelector(".track-card-summary");
-  if (summary) summary.setAttribute("aria-expanded", String(isExpanded));
+  if (summary) {
+    summary.removeAttribute("role");
+    summary.removeAttribute("tabindex");
+    summary.removeAttribute("onclick");
+    summary.removeAttribute("onkeydown");
+    summary.setAttribute("aria-expanded", "true");
+    summary.querySelector("h3")?.remove();
+  }
+  card.querySelector(".collapse-track-card")?.remove();
 
-  // Initialise the embedded map only after its card becomes visible.
-  if (isExpanded) {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        initialiseTrackLocationMaps(card);
-      });
-    });
+  const details = card.querySelector(".track-details");
+  if (details) details.style.display = "block";
+  const distance = card.querySelector(".track-distance");
+  if (distance) distance.remove();
+
+  document.querySelector("#track-detail-page .track-detail-nav h2").textContent = name;
+  content.appendChild(card);
+
+  const directory = document.querySelector(".directory-page");
+  if (!directory.classList.contains("track-detail-open")) {
+    trackDetailReturnScrollTop = window.scrollY;
+  }
+  directory.classList.add("track-detail-open");
+  window.scrollTo(0, 0);
+
+  requestAnimationFrame(() => initialiseTrackLocationMaps(card));
+  if (openVisit) {
+    const visitButton = card.querySelector(".track-visit-toggle");
+    if (visitButton) openVisitForm(visitButton);
+  }
+}
+
+function closeTrackDetailPage() {
+  document.querySelector(".directory-page")?.classList.remove("track-detail-open");
+  document.getElementById("track-detail-content").replaceChildren();
+  window.scrollTo(0, trackDetailReturnScrollTop);
+  if (directoryView === "map") {
+    window.setTimeout(() => {
+      if (directoryMap) directoryMap.invalidateSize();
+    }, 50);
   }
 }
 
@@ -2752,7 +2878,7 @@ function initialiseTrackLocationMaps(root) {
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
     });
 
-    streetLayer.addTo(map);
+    satelliteLayer.addTo(map);
     L.control.layers({ "Street map": streetLayer, "Satellite": satelliteLayer }, null, {
       position: "topright",
       collapsed: true
@@ -3005,6 +3131,12 @@ function updateTrackDistances() {
       trackInfo.appendChild(distanceElement);
     }
 
+    distanceElement.style.display =
+      (trackSortOrder === "near" || trackSortOrder === "near-custom") &&
+      !card.classList.contains("expanded")
+        ? "inline"
+        : "none";
+
     const distance = getTrackDistance(card);
 
     // No distance available if location or track coordinates are missing
@@ -3042,6 +3174,14 @@ const distanceMode =
   trackSortOrder === "near-custom";
 
 list.classList.toggle("near-me-mode", distanceMode);
+
+// Distance labels remain in the DOM after nearby sorting; explicitly hide
+// them again when returning to A–Z.
+if (!distanceMode) {
+  list.querySelectorAll(".track-distance").forEach(element => {
+    element.style.display = "none";
+  });
+}
 
 // Update distances whenever a distance-based mode is active
 if (distanceMode) {
@@ -3461,7 +3601,7 @@ function refreshDirectoryMap({ fitBounds = false } = {}) {
 
     const marker = L.marker([location.lat, location.lng], { icon })
       .addTo(directoryMap)
-      .on("click", () => openTrackActionDialog(card.dataset.trackId));
+      .on("click", () => openTrackActionDialog(card.dataset.trackId, "map"));
 
     directoryMapMarkers.push(marker);
   });
@@ -3537,7 +3677,7 @@ function openUserLocationDialog() {
   document.body.style.overflow = "hidden";
 }
 
-function openTrackActionDialog(trackId) {
+function openTrackActionDialog(trackId, source = "map") {
 
   const original = document.querySelector(
     `#track-list-view > .track-card[data-track-id="${trackId}"]`
@@ -3557,25 +3697,25 @@ function openTrackActionDialog(trackId) {
   const viewButton = document.createElement("button");
   viewButton.textContent = "View";
   viewButton.addEventListener("click", () => {
-    openMapTrackPopup(trackId);
+    closeMapTrackPopup();
+    openTrackDetailPage(trackId);
   });
 
   const addVisitButton = document.createElement("button");
   addVisitButton.textContent = "Add visit";
   addVisitButton.addEventListener("click", () => {
-    openMapTrackPopup(trackId);
-    const popupCard = document.querySelector(
-      '#map-track-popup-content > .track-card[data-map-popup-clone="true"]'
-    );
-    const visitToggle = popupCard?.querySelector(".track-visit-toggle");
-    if (visitToggle) openVisitForm(visitToggle);
+    closeMapTrackPopup();
+    openTrackDetailPage(trackId, true);
   });
 
-  const nearButton = document.createElement("button");
-  nearButton.textContent = "Tracks near here";
-  nearButton.addEventListener("click", () => {
-    showTracksNearTrack(trackId);
-  });
+  let nearButton = null;
+  if (source === "map") {
+    nearButton = document.createElement("button");
+    nearButton.textContent = "Tracks near here";
+    nearButton.addEventListener("click", () => {
+      showTracksNearTrack(trackId);
+    });
+  }
 
   const cancelButton = document.createElement("button");
   cancelButton.textContent = "Cancel";
@@ -3586,7 +3726,9 @@ function openTrackActionDialog(trackId) {
 const actions = document.createElement("div");
 actions.className = "map-track-actions";
 
-actions.append(title, viewButton, addVisitButton, nearButton, cancelButton);
+actions.append(title, viewButton, addVisitButton);
+if (nearButton) actions.append(nearButton);
+actions.append(cancelButton);
 
 content.append(actions);
 
@@ -3630,68 +3772,7 @@ function showTracksNearTrack(trackId) {
 }
 
 function openMapTrackPopup(trackId) {
-  const original = document.querySelector(
-    `#track-list-view > .track-card[data-track-id="${trackId}"]`
-  );
-  if (!original) return;
-
-  const content = document.getElementById("map-track-popup-content");
-  content.replaceChildren();
-  
-  content.classList.add("track-card-popup-mode");
-
-  const clone = original.cloneNode(true);
-  clone.classList.add("expanded");
-  clone.dataset.mapPopupClone = "true";
-  clone.querySelectorAll("[id]").forEach(element => element.removeAttribute("id"));
-
-    // Remove distance information from the map popup
-  clone.querySelectorAll(".track-distance").forEach(element => {
-    element.remove();
-  });
-// Reset the records panel state in the popup clone
-const cloneDetails = clone.querySelector(".track-details");
-const cloneRecordsPanel = clone.querySelector(".track-records-panel");
-const cloneHistoryToggle = clone.querySelector(".track-history-toggle");
-const cloneStats = clone.querySelector(".track-stats");
-const cloneVisitForm = clone.querySelector(".visit-form-container");
-const cloneVisitToggle = clone.querySelector(".track-visit-toggle");
-
-if (cloneDetails) cloneDetails.style.display = "none";
-if (cloneRecordsPanel) cloneRecordsPanel.style.display = "none";
-if (cloneStats) cloneStats.style.display = "none";
-if (cloneVisitForm) cloneVisitForm.style.display = "none";
-
-if (cloneHistoryToggle) {
-  cloneHistoryToggle.textContent = "View records";
-}
-
-if (cloneVisitToggle) {
-  cloneVisitToggle.textContent = "Add visit";
-}
-
-  // Add the close button directly to the track card
-  const closeButton = document.createElement("button");
-  closeButton.type = "button";
-  closeButton.className = "map-popup-close";
-  closeButton.setAttribute("aria-label", "Close track details");
-  closeButton.textContent = "×";
-  closeButton.addEventListener("click", closeMapTrackPopup);
-
-  clone.insertBefore(closeButton, clone.firstChild);
-
-  // Keep the map view popup compact; location maps are shown in list cards.
-  clone.querySelector(".track-location-map")?.remove();
-  clone.querySelector(".location-section a")?.closest("p")?.remove();
-
-  const summary = clone.querySelector(".track-card-summary");
-
-
-  if (summary) summary.setAttribute("aria-expanded", "true");
-
-  content.appendChild(clone);
-  document.getElementById("map-track-popup").style.display = "flex";
-  document.body.style.overflow = "hidden";
+  openTrackDetailPage(trackId);
 }
 
 function closeMapTrackPopup() {
@@ -3762,7 +3843,7 @@ document.addEventListener("touchend", event => {
 }, { passive: true });
 
     function updateAllViews() {
-      document.querySelectorAll("#track-list-view > .track-card, #map-track-popup-content > .track-card").forEach(card => {
+      document.querySelectorAll("#track-list-view > .track-card, #map-track-popup-content > .track-card, #track-detail-content > .track-card").forEach(card => {
         updateTrackCard(card);
         if (card.querySelector(".track-details")?.style.display === "block") {
           renderTrackHistory(card);
