@@ -1,20 +1,18 @@
-<!-- My Track Passport v12 — Stability & Data Foundation
-My Track Passport — version history
-index: Original version; basic track visits and running logs.
-index_v1: Unified visit-record data model.
-index_v2: Adds training, competition and spectating records.
-index_v3: Expands competition recording with Track/Field categories and event-specific options.
-index_v4: Two Pages: Track Directory and Visit History. 
-index_v5: JSON backup.
-index_v6: Compact, expandable Track Directory cards with a two-level card layout.
-index_v7: Adds Map/List directory views, coloured visit-status markers and track-detail popups.
-index_v8: Detailed visit records with start time, duration and detailed track cards.
-index_v9：Separated Track Card HTML into an external tracks.html file. 
-          Updated the main JavaScript to load Track Cards dynamically using fetch(), keeping the existing functionality intact.
-index_v10: Adds user geolocation to Track Directory Map.
-            Users can request their current location and
-            display it as a blue marker on the map.
-index_v11: Changes the data management model.
+<!--
+My Track Passport v12 — Stability and Data Foundation
+index_v0: Original track directory with visit check-ins and running-distance logs.
+index_v1: Combines check-ins and running logs into unified visit records and migrates legacy data.
+index_v2: Adds training, competition and spectating records, plus visit history and summaries.
+index_v3: Adds Track and Field competition categories with event-specific entry fields.
+index_v4: Splits the app into Track Directory and Visit History pages.
+index_v5: Adds JSON backup export and import.
+index_v6: Adds compact, expandable track cards and expanded directory filters.
+index_v7: Adds map and list views, visit-status markers and track-detail popups.
+index_v8: Adds visit start times, durations and warm-up details, and expands track information.
+index_v9: Moves track-card markup and data to tracks.html and loads it dynamically.
+index_v10: Adds user location, nearby-track search and distance sorting, including custom map locations.
+index_v11: Refines visit statistics and location handling.
+index_v12: Centralizes record storage, validates backups and events, and safely handles missing times and directory-load failures.
 -->
 
 <!DOCTYPE html>
@@ -1404,6 +1402,60 @@ body {
       return { id: makeId(), trackId, type, date: null, createdAt: new Date().toISOString(), ...fields };
     }
 
+    function validateCompetitionEvent(event, label) {
+      if (!event || typeof event !== "object" || Array.isArray(event)) throw new Error(`${label} must be a valid object.`);
+
+      const trackEventDistances = {
+        "50m":50,"60m":60,"100m":100,"200m":200,"400m":400,"800m":800,"1000m":1000,
+        "1500m":1500,"mile":1609,"2000m":2000,"3000m":3000,"two miles":3219,
+        "5000m":5000,"10000m":10000,"60mH":60,"100mH":100,"110mH":110,
+        "300mH":300,"400mH":400,"2000m SC":2000,"3000m SC":3000,
+        "4 by 100m":100,"4 by 200m":200,"4 by 400m":400
+      };
+      const fieldEvents = ["High jump","Long jump","Triple jump","Pole vault","Shot put","Javelin","Hammer","Discus","Other"];
+      const trackEvents = [...Object.keys(trackEventDistances), "1 hour run", "Other"];
+      if (typeof event.eventName !== "string" || !event.eventName.trim()) throw new Error(`${label} is missing a valid eventName.`);
+      if (!["track", "field"].includes(event.eventCategory)) throw new Error(`${label} has an invalid eventCategory.`);
+      if (typeof event.selectedEvent !== "string" || !(event.eventCategory === "track" ? trackEvents : fieldEvents).includes(event.selectedEvent)) throw new Error(`${label} has an invalid selectedEvent for its eventCategory.`);
+      if (typeof event.result !== "string" || !event.result.trim()) throw new Error(`${label} is missing a valid result.`);
+      if (event.startTime != null && event.startTime !== "" && (typeof event.startTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.startTime))) throw new Error(`${label} has an invalid startTime.`);
+      if (typeof event.distanceMetres !== "number" || !Number.isFinite(event.distanceMetres) || !Number.isInteger(event.distanceMetres) || event.distanceMetres < 0) throw new Error(`${label} has an invalid distanceMetres.`);
+
+      if (event.eventCategory === "field") {
+        const resultMetres = Number(event.result);
+        if (!Number.isFinite(resultMetres) || resultMetres < 0) throw new Error(`${label} has an invalid field result.`);
+        if (event.distanceMetres !== 0) throw new Error(`${label} has an invalid distanceMetres for a field event.`);
+      } else if (event.selectedEvent === "1 hour run") {
+        const resultDistance = Number(event.result);
+        if (!Number.isFinite(resultDistance) || !Number.isInteger(resultDistance) || resultDistance <= 0 || event.distanceMetres !== resultDistance) throw new Error(`${label} has an invalid 1 hour run distance result.`);
+      } else if (Object.prototype.hasOwnProperty.call(trackEventDistances, event.selectedEvent)) {
+        if (event.distanceMetres !== trackEventDistances[event.selectedEvent]) throw new Error(`${label} has an invalid distanceMetres for ${event.selectedEvent}.`);
+      }
+
+      const hurdleEvents = ["60mH","100mH","110mH","300mH","400mH","2000m SC","3000m SC"];
+      const savedHurdle = event.hurdleHeight;
+      if (event.eventCategory === "track" && hurdleEvents.includes(event.selectedEvent) && (typeof savedHurdle !== "string" || !savedHurdle.trim())) throw new Error(`${label} is missing a valid hurdleHeight.`);
+      if (savedHurdle != null) {
+        if (typeof savedHurdle !== "string" || !savedHurdle.trim()) throw new Error(`${label} has an invalid hurdleHeight.`);
+        const presetHeights = event.selectedEvent.endsWith(" SC")
+          ? ["0.762 m","0.838 m","0.914 m"]
+          : ["0.600 m","0.686 m","0.762 m","0.838 m","0.914 m","0.991 m","1.000 m","1.067 m"];
+        const customHeight = Number(savedHurdle.replace(/\s*m$/i, ""));
+        if (!hurdleEvents.includes(event.selectedEvent) || (!presetHeights.includes(savedHurdle) && (!Number.isFinite(customHeight) || customHeight <= 0))) throw new Error(`${label} has an invalid hurdleHeight.`);
+      }
+
+      const implementWeights = {
+        "Shot put":["1 kg","2 kg","2.72 kg","3 kg","3.25 kg","3.63 kg","4 kg","5 kg","6 kg","7.26 kg"],
+        "Javelin":["300 g","400 g","500 g","600 g","700 g","800 g"],
+        "Hammer":["2 kg","3 kg","3.25 kg","3.63 kg","4 kg","5 kg","6 kg","7.26 kg"],
+        "Discus":["0.6 kg","0.75 kg","1 kg","1.25 kg","1.5 kg","1.6 kg","1.75 kg","2 kg"]
+      };
+      const savedWeight = event.implementWeight;
+      const allowedWeights = implementWeights[event.selectedEvent];
+      if (allowedWeights && (typeof savedWeight !== "string" || !allowedWeights.includes(savedWeight))) throw new Error(`${label} is missing a valid implementWeight.`);
+      if (!allowedWeights && savedWeight != null) throw new Error(`${label} has an unexpected implementWeight.`);
+    }
+
     function validateVisitRecords(records) {
       if (!Array.isArray(records)) throw new Error("Visit records must be an array.");
       const ids = new Set();
@@ -1414,7 +1466,8 @@ body {
         if (ids.has(record.id)) throw new Error(`Duplicate record id: ${record.id}`);
         ids.add(record.id);
         if (typeof record.trackId !== "string" || !record.trackId.trim()) throw new Error(`${label} is missing a valid trackId.`);
-        if (!["training", "competition", "spectating"].includes(record.type)) throw new Error(`${label} has an unsupported type.`);
+        if (typeof record.type !== "string" || !record.type.trim()) throw new Error(`${label} is missing a valid type.`);
+        if (!["training", "competition", "spectating"].includes(record.type)) throw new Error(`${label} has an unsupported type: ${record.type}.`);
         if (record.date != null && record.date !== "") {
           const dateParts = typeof record.date === "string" && record.date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
           const parsedDate = dateParts ? new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3])) : null;
@@ -1424,7 +1477,11 @@ body {
         for (const key of ["distanceMetres", "durationMinutes", "warmupDistanceMetres", "warmupDurationMinutes"]) {
           if (record[key] != null && (!Number.isFinite(record[key]) || record[key] < 0)) throw new Error(`${label} has an invalid ${key}.`);
         }
-        if (record.events != null && (!Array.isArray(record.events) || record.events.some(event => !event || typeof event !== "object" || (event.startTime != null && event.startTime !== "" && (typeof event.startTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.startTime))) || (event.distanceMetres != null && (!Number.isFinite(event.distanceMetres) || event.distanceMetres < 0))))) throw new Error(`${label} has invalid event data.`);
+        if (record.type === "competition" && (!Array.isArray(record.events) || record.events.length === 0)) throw new Error(`${label} must contain at least one valid event in events.`);
+        if (record.events != null) {
+          if (!Array.isArray(record.events)) throw new Error(`${label} has invalid events; expected an array.`);
+          record.events.forEach((event, eventIndex) => validateCompetitionEvent(event, `${label}, event ${eventIndex + 1}`));
+        }
       });
       return records;
     }
@@ -1437,7 +1494,7 @@ body {
         try { parsed = JSON.parse(raw); } catch (error) { return { ok: false, records: [], error: new Error("Saved visit records contain invalid JSON. Existing data was left untouched.") }; }
         try {
           if (!Array.isArray(parsed)) throw new Error("Visit records must be an array.");
-          return { ok: true, records: validateVisitRecords(parsed.filter(record => record && record.type !== "")) };
+          return { ok: true, records: validateVisitRecords(parsed) };
         }
         catch (error) { return { ok: false, records: [], error: new Error(`Saved visit records are invalid: ${error.message}`) }; }
       } catch (error) { return { ok: false, records: [], error: new Error(`Unable to read saved visit records: ${error.message}`) }; }
@@ -1466,8 +1523,9 @@ body {
     }
     function updateVisitRecord(record) {
       const index = visitRecords.findIndex(item => item.id === record.id);
+      if (index < 0) return false;
       const candidate = [...visitRecords];
-      if (index < 0) candidate.push(record); else candidate[index] = record;
+      candidate[index] = record;
       if (!saveVisitRecords(candidate)) return false;
       visitRecords = candidate;
       return true;
@@ -1651,7 +1709,7 @@ const trainingDuration = visits.reduce((sum, record) => {
   }
 
   if (record.type === "competition" && record.warmupOnTrack) {
-    return sum + Number(record.warmupDurationMinutes || 0);
+    return sum + Number(record.warmupDurationMinutes ?? 0);
   }
 
   return sum;
@@ -2178,8 +2236,10 @@ if (durationInput) {
             fields.querySelector(".warmup-duration");
 
           if (warmupDurationInput && recordToEdit.warmupOnTrack) {
-              warmupDurationInput.value =
-               formatDuration(recordToEdit.warmupDurationMinutes || 0);
+              const warmupDuration = recordToEdit.warmupDurationMinutes;
+              warmupDurationInput.value = typeof warmupDuration === "number" && Number.isFinite(warmupDuration) && warmupDuration >= 0
+                ? formatDuration(warmupDuration)
+                : "";
        }
 
           const savedEvents = Array.isArray(recordToEdit.events) ? recordToEdit.events : [];
@@ -2504,7 +2564,8 @@ updateAllViews();
 
   if (record.warmupOnTrack) {
     lines.push(`On-track warm-up distance: ${formatDistance(record.warmupDistanceMetres)}`);
-    lines.push(`On-track warm-up duration: ${formatDuration(record.warmupDurationMinutes || 0)}`);
+    const warmupDuration = record.warmupDurationMinutes;
+    lines.push(`On-track warm-up duration: ${typeof warmupDuration === "number" && Number.isFinite(warmupDuration) && warmupDuration >= 0 ? formatDuration(warmupDuration) : "Not recorded"}`);
   }
 
   lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
@@ -2610,7 +2671,8 @@ function toggleTrackHistory(button) {
 
   if (record.warmupOnTrack) {
     lines.push(`On-track warm-up distance: ${formatDistance(record.warmupDistanceMetres)}`);
-    lines.push(`On-track warm-up duration: ${formatDuration(record.warmupDurationMinutes || 0)}`);
+    const warmupDuration = record.warmupDurationMinutes;
+    lines.push(`On-track warm-up duration: ${typeof warmupDuration === "number" && Number.isFinite(warmupDuration) && warmupDuration >= 0 ? formatDuration(warmupDuration) : "Not recorded"}`);
   }
 
   lines.push(`Running distance counted: ${formatDistance(recordDistanceTotal(record))}`);
@@ -3498,6 +3560,17 @@ function openTrackActionDialog(trackId) {
     openMapTrackPopup(trackId);
   });
 
+  const addVisitButton = document.createElement("button");
+  addVisitButton.textContent = "Add visit";
+  addVisitButton.addEventListener("click", () => {
+    openMapTrackPopup(trackId);
+    const popupCard = document.querySelector(
+      '#map-track-popup-content > .track-card[data-map-popup-clone="true"]'
+    );
+    const visitToggle = popupCard?.querySelector(".track-visit-toggle");
+    if (visitToggle) openVisitForm(visitToggle);
+  });
+
   const nearButton = document.createElement("button");
   nearButton.textContent = "Tracks near here";
   nearButton.addEventListener("click", () => {
@@ -3513,7 +3586,7 @@ function openTrackActionDialog(trackId) {
 const actions = document.createElement("div");
 actions.className = "map-track-actions";
 
-actions.append(title, viewButton, nearButton, cancelButton);
+actions.append(title, viewButton, addVisitButton, nearButton, cancelButton);
 
 content.append(actions);
 
