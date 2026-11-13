@@ -600,7 +600,7 @@ body {
 .track-detail-nav {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 1200;
   display: grid;
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
@@ -620,19 +620,65 @@ body {
   font-size: 27px;
   line-height: 1;
 }
-#track-detail-content > .track-card { max-width: 900px; margin: 0 auto 24px; }
-#track-detail-content > .track-card .track-card-summary { cursor: default; }
-#track-detail-content > .track-card .track-card-content { display: block !important; }
-#track-detail-content > .track-card .track-details { display: block; }
-#track-detail-content .track-facilities {
-  margin-bottom: 26px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e1e8e2;
+#track-detail-content > .track-card {
+  max-width: 900px;
+  margin: 0 auto 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
 }
-#track-detail-content .status { margin-top: 12px; }
+.track-detail-home { display: block; }
+.track-detail-visit-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border: 1px solid #e1e8e2;
+  border-radius: 12px;
+  background: #fff;
+}
+.track-detail-visit-card .status {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+.track-detail-visit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.track-detail-visit-actions button { margin: 0; white-space: nowrap; }
+.track-detail-information-card {
+  overflow: hidden;
+  border: 1px solid #e1e8e2;
+  border-radius: 12px;
+  background: #fff;
+}
+.track-detail-information-card .track-card-summary { cursor: default; }
+.track-detail-information-card .track-card-content { display: block !important; }
+.track-detail-information-card .track-details { display: none !important; }
+.track-detail-subpage {
+  display: none;
+  padding: 18px;
+  border: 1px solid #e1e8e2;
+  border-radius: 12px;
+  background: #fff;
+}
+#track-detail-content .track-detail-subpage .track-details { display: block !important; }
+#track-detail-content .track-detail-subpage .track-records-panel { display: block; }
 @media (max-width: 600px) {
   .track-detail-nav { margin-left: -14px; margin-right: -14px; padding-left: 14px; padding-right: 14px; }
   #track-detail-content > .track-card { margin-left: -8px; margin-right: -8px; }
+  .track-detail-visit-card { gap: 6px; padding: 8px; }
+  .track-detail-visit-actions { gap: 4px; }
+  .track-detail-visit-actions button { padding: 8px; font-size: 12px; }
 }
 
 .track-card-summary {
@@ -1757,8 +1803,27 @@ function updateTrackCard(card) {
   const status = card.querySelector(".status");
   const visits = getTrackVisits(trackId);
 
-  // Update visited status
-  status.textContent = visits.length ? "Visited" : "Not visited";
+  // Show the latest visit date so the status remains useful at a glance.
+  const latestVisitDate = visits
+    .map(record => record.date)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  if (visits.length && latestVisitDate) {
+    const parsedDate = new Date(`${latestVisitDate}T00:00:00`);
+    const formattedDate = Number.isNaN(parsedDate.getTime())
+      ? latestVisitDate
+      : new Intl.DateTimeFormat(undefined, {
+          day: "numeric",
+          month: "short",
+          year: "numeric"
+        }).format(parsedDate);
+    status.textContent = `Last visited: ${formattedDate}`;
+  } else if (visits.length) {
+    status.textContent = "Visited";
+  } else {
+    status.textContent = "Not visited";
+  }
   status.classList.toggle("visited", visits.length > 0);
 
   // Count visits by type
@@ -1800,8 +1865,12 @@ if (!stats) {
 const details = card.querySelector(".track-details");
 const recordsPanel = details?.querySelector(".track-records-panel");
 
-if (details && recordsPanel) {
-  details.insertBefore(stats, recordsPanel);
+if (details) {
+  if (recordsPanel) {
+    details.insertBefore(stats, recordsPanel);
+  } else {
+    details.appendChild(stats);
+  }
 }
 }
 
@@ -2019,7 +2088,7 @@ if (!targetContainer && button &&
         card.querySelector(".track-card-summary h3")?.textContent.trim() ||
         card.querySelector("h3")?.textContent.trim() ||
         "Track";
-      const heading = document.createElement("h4"); heading.textContent = `${recordToEdit ? "Edit visit" : "Add visit"} · ${trackName}`; form.appendChild(heading);
+      const heading = document.createElement("h4"); heading.textContent = recordToEdit ? `Edit visit · ${trackName}` : trackName; form.appendChild(heading);
       const mode = addField(form, "Visit type", "select", "visit-type", {items:[
         {value:"training",label:"Training"},{value:"competition",label:"Competition"},{value:"spectating",label:"Spectating"}
       ]});
@@ -2575,8 +2644,15 @@ if (stats) {
     recordsPanel.style.display = "block";
   }
 
+  const detailSubpage = card.querySelector(".track-detail-subpage");
+  if (detailSubpage) {
+    detailSubpage.dataset.mode = "records";
+    document.querySelector("#track-detail-page .track-detail-nav h2").textContent =
+      "Visit records";
+  }
+
   if (historyToggle) {
-    historyToggle.textContent = "Hide records";
+    historyToggle.textContent = "View records";
   }
 
   card.querySelector(".track-details").style.display = "block";
@@ -2807,6 +2883,7 @@ function openTrackDetailPage(trackId, openVisit = false) {
   card.dataset.trackName = name;
   card.classList.add("expanded");
   card.dataset.trackDetailClone = "true";
+  updateTrackCard(card);
   card.querySelectorAll("[id]").forEach(element => element.removeAttribute("id"));
   const summary = card.querySelector(".track-card-summary");
   if (summary) {
@@ -2819,8 +2896,75 @@ function openTrackDetailPage(trackId, openVisit = false) {
   }
   card.querySelector(".collapse-track-card")?.remove();
 
+  const cardContent = card.querySelector(".track-card-content");
+  const status = card.querySelector(".status");
+  const visitButton = card.querySelector(".track-visit-toggle");
+  const historyButton = card.querySelector(".track-history-toggle");
   const details = card.querySelector(".track-details");
-  if (details) details.style.display = "block";
+  const stats = card.querySelector(".track-stats");
+  if (details && stats && !details.contains(stats)) {
+    const recordsPanel = details.querySelector(".track-records-panel");
+    if (recordsPanel) {
+      details.insertBefore(stats, recordsPanel);
+    } else {
+      details.appendChild(stats);
+    }
+  }
+  const lineBreak = status?.nextElementSibling?.tagName === "BR"
+    ? status.nextElementSibling
+    : null;
+
+  status?.remove();
+  lineBreak?.remove();
+  visitButton?.remove();
+  historyButton?.remove();
+  details?.remove();
+
+  const home = document.createElement("div");
+  home.className = "track-detail-home";
+
+  const visitCard = document.createElement("section");
+  visitCard.className = "track-detail-visit-card";
+  if (status) visitCard.appendChild(status);
+
+  const visitActions = document.createElement("div");
+  visitActions.className = "track-detail-visit-actions";
+  if (visitButton) {
+    visitButton.removeAttribute("onclick");
+    visitButton.addEventListener("click", () => openTrackDetailSubpage("visit"));
+    visitActions.appendChild(visitButton);
+  }
+  if (historyButton) {
+    historyButton.removeAttribute("onclick");
+    historyButton.addEventListener("click", () => openTrackDetailSubpage("records"));
+    historyButton.textContent = "View records";
+    visitActions.appendChild(historyButton);
+  }
+  visitCard.appendChild(visitActions);
+
+  const information = document.createElement("section");
+  information.className = "track-detail-information-card";
+  if (summary) information.appendChild(summary);
+  if (cardContent) information.appendChild(cardContent);
+
+  home.append(visitCard, information);
+  card.replaceChildren(home);
+
+  const subpage = document.createElement("section");
+  subpage.className = "track-detail-subpage";
+  subpage.dataset.mode = "";
+  if (details) {
+    details.style.display = "block";
+    const formContainer = details.querySelector(".visit-form-container");
+    if (formContainer) formContainer.style.display = "none";
+    const recordsPanel = details.querySelector(".track-records-panel");
+    if (recordsPanel) recordsPanel.style.display = "none";
+    const stats = details.querySelector(".track-stats");
+    if (stats) stats.style.display = "none";
+    subpage.appendChild(details);
+  }
+  card.appendChild(subpage);
+
   const distance = card.querySelector(".track-distance");
   if (distance) distance.remove();
 
@@ -2836,9 +2980,104 @@ function openTrackDetailPage(trackId, openVisit = false) {
 
   requestAnimationFrame(() => initialiseTrackLocationMaps(card));
   if (openVisit) {
+    openTrackDetailSubpage("visit", "directory");
+  }
+}
+
+function openTrackDetailSubpage(mode, returnTarget = "information") {
+  const card = document.querySelector("#track-detail-content > .track-card");
+  if (!card) return;
+  updateTrackCard(card);
+  const home = card.querySelector(".track-detail-home");
+  const subpage = card.querySelector(".track-detail-subpage");
+  const details = card.querySelector(".track-details");
+  if (!home || !subpage || !details) return;
+
+  const navButton = document.querySelector("#track-detail-page .track-detail-back");
+  const navTitle = document.querySelector("#track-detail-page .track-detail-nav h2");
+  const formContainer = details.querySelector(".visit-form-container");
+  const recordsPanel = details.querySelector(".track-records-panel");
+  const stats = details.querySelector(".track-stats");
+  const historyButton = card.querySelector(".track-history-toggle");
+
+  home.style.display = "none";
+  subpage.style.display = "block";
+  subpage.dataset.mode = mode;
+  if (mode === "visit") {
+    subpage.dataset.returnTarget = returnTarget;
+  }
+  details.style.display = "block";
+  if (navButton) {
+    navButton.setAttribute("aria-label", "Back to track information");
+    navButton.setAttribute("onclick", "closeTrackDetailSubpage()");
+  }
+
+  if (mode === "visit") {
+    navTitle.textContent = "Add visit";
+    if (formContainer) {
+      formContainer.replaceChildren();
+      formContainer.style.display = "none";
+    }
+    if (recordsPanel) recordsPanel.style.display = "none";
+    if (stats) stats.style.display = "none";
     const visitButton = card.querySelector(".track-visit-toggle");
     if (visitButton) openVisitForm(visitButton);
+  } else {
+    navTitle.textContent = "Visit records";
+    if (formContainer) {
+      formContainer.replaceChildren();
+      formContainer.style.display = "none";
+    }
+    if (recordsPanel) recordsPanel.style.display = "block";
+    if (stats) stats.style.display = "block";
+    if (historyButton) historyButton.textContent = "View records";
+    renderTrackHistory(card);
   }
+  window.scrollTo(0, 0);
+}
+
+function closeTrackDetailSubpage() {
+  const card = document.querySelector("#track-detail-content > .track-card");
+  if (!card) return;
+  const home = card.querySelector(".track-detail-home");
+  const subpage = card.querySelector(".track-detail-subpage");
+  const details = card.querySelector(".track-details");
+  const formContainer = card.querySelector(".visit-form-container");
+  const recordsPanel = card.querySelector(".track-records-panel");
+  const stats = card.querySelector(".track-stats");
+  const visitButton = card.querySelector(".track-visit-toggle");
+  const historyButton = card.querySelector(".track-history-toggle");
+  const returnToDirectory = subpage?.dataset.returnTarget === "directory";
+
+  if (formContainer) {
+    formContainer.replaceChildren();
+    formContainer.style.display = "none";
+  }
+  if (recordsPanel) recordsPanel.style.display = "none";
+  if (stats) stats.style.display = "none";
+  if (details) details.style.display = "none";
+  if (visitButton) visitButton.textContent = "Add visit";
+  if (historyButton) historyButton.textContent = "View records";
+  if (subpage) {
+    subpage.style.display = "none";
+    subpage.dataset.mode = "";
+  }
+
+  if (returnToDirectory) {
+    closeTrackDetailPage();
+    return;
+  }
+
+  if (home) home.style.display = "block";
+
+  const navButton = document.querySelector("#track-detail-page .track-detail-back");
+  if (navButton) {
+    navButton.setAttribute("aria-label", "Back to Track Directory");
+    navButton.setAttribute("onclick", "closeTrackDetailPage()");
+  }
+  document.querySelector("#track-detail-page .track-detail-nav h2").textContent =
+    card.dataset.trackName || "Track details";
+  window.scrollTo(0, 0);
 }
 
 function closeTrackDetailPage() {
@@ -2910,6 +3149,26 @@ function sortTrackCards() {
 }
 
 function showPage(page) {
+  const directoryPanel = document.querySelector(".directory-page");
+  if (page === "directory" && directoryPanel?.classList.contains("track-detail-open")) {
+    const isDirectoryActive = directoryPanel.classList.contains("active-page");
+    const subpage = document.querySelector("#track-detail-content .track-detail-subpage");
+    const isSubpageOpen = subpage?.style.display === "block";
+
+    if (isSubpageOpen) {
+      closeTrackDetailSubpage();
+    } else {
+      closeTrackDetailPage();
+    }
+
+    // In the directory, the navigation button acts exactly like the current
+    // back button. From another page, also finish navigating to the directory.
+    if (isDirectoryActive) return;
+    if (directoryPanel.classList.contains("track-detail-open")) {
+      closeTrackDetailPage();
+    }
+  }
+
   // Hide the main banner on Track Directory
   const mainHeader = document.querySelector("main.container > header");
 
