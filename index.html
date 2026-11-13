@@ -1,4 +1,4 @@
-<!--
+<!-- My Track Passport v12 — Stability & Data Foundation
 My Track Passport — version history
 index: Original version; basic track visits and running logs.
 index_v1: Unified visit-record data model.
@@ -1391,12 +1391,6 @@ body {
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin=""></script>
   <script>
-    function loadData(key, fallback) {
-      const saved = localStorage.getItem(key);
-      if (saved === null) return fallback;
-      try { return JSON.parse(saved); } catch (error) { return fallback; }
-    }
-
     function makeId() {
       return Date.now().toString(36) + Math.random().toString(36).slice(2);
     }
@@ -1410,14 +1404,88 @@ body {
       return { id: makeId(), trackId, type, date: null, createdAt: new Date().toISOString(), ...fields };
     }
 
-    const savedVisitRecords = loadData("visitRecords", null);
-    let visitRecords = Array.isArray(savedVisitRecords) ? savedVisitRecords : [];
-    // Remove obsolete  entries from the unified records.
-    visitRecords = visitRecords.filter(record => record && record.type !== "");
-    function saveVisitRecords() { localStorage.setItem("visitRecords", JSON.stringify(visitRecords)); }
+    function validateVisitRecords(records) {
+      if (!Array.isArray(records)) throw new Error("Visit records must be an array.");
+      const ids = new Set();
+      records.forEach((record, index) => {
+        const label = `Record ${index + 1}`;
+        if (!record || typeof record !== "object" || Array.isArray(record)) throw new Error(`${label} must be an object.`);
+        if (typeof record.id !== "string" || !record.id.trim()) throw new Error(`${label} is missing a valid id.`);
+        if (ids.has(record.id)) throw new Error(`Duplicate record id: ${record.id}`);
+        ids.add(record.id);
+        if (typeof record.trackId !== "string" || !record.trackId.trim()) throw new Error(`${label} is missing a valid trackId.`);
+        if (!["training", "competition", "spectating"].includes(record.type)) throw new Error(`${label} has an unsupported type.`);
+        if (record.date != null && record.date !== "") {
+          const dateParts = typeof record.date === "string" && record.date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          const parsedDate = dateParts ? new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3])) : null;
+          if (!dateParts || parsedDate.getFullYear() !== Number(dateParts[1]) || parsedDate.getMonth() !== Number(dateParts[2]) - 1 || parsedDate.getDate() !== Number(dateParts[3])) throw new Error(`${label} has an invalid date.`);
+        }
+        if (record.startTime != null && record.startTime !== "" && (typeof record.startTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(record.startTime))) throw new Error(`${label} has an invalid startTime.`);
+        for (const key of ["distanceMetres", "durationMinutes", "warmupDistanceMetres", "warmupDurationMinutes"]) {
+          if (record[key] != null && (!Number.isFinite(record[key]) || record[key] < 0)) throw new Error(`${label} has an invalid ${key}.`);
+        }
+        if (record.events != null && (!Array.isArray(record.events) || record.events.some(event => !event || typeof event !== "object" || (event.startTime != null && event.startTime !== "" && (typeof event.startTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.startTime))) || (event.distanceMetres != null && (!Number.isFinite(event.distanceMetres) || event.distanceMetres < 0))))) throw new Error(`${label} has invalid event data.`);
+      });
+      return records;
+    }
+
+    function loadVisitRecords() {
+      try {
+        const raw = localStorage.getItem("visitRecords");
+        if (raw === null) return { ok: true, records: [] };
+        let parsed;
+        try { parsed = JSON.parse(raw); } catch (error) { return { ok: false, records: [], error: new Error("Saved visit records contain invalid JSON. Existing data was left untouched.") }; }
+        try {
+          if (!Array.isArray(parsed)) throw new Error("Visit records must be an array.");
+          return { ok: true, records: validateVisitRecords(parsed.filter(record => record && record.type !== "")) };
+        }
+        catch (error) { return { ok: false, records: [], error: new Error(`Saved visit records are invalid: ${error.message}`) }; }
+      } catch (error) { return { ok: false, records: [], error: new Error(`Unable to read saved visit records: ${error.message}`) }; }
+    }
+
+    let recordsLoadState = loadVisitRecords();
+    let visitRecords = recordsLoadState.records;
+    if (!recordsLoadState.ok) console.error(recordsLoadState.error);
+    function saveVisitRecords(candidate = visitRecords, { replaceInvalid = false, notify = true } = {}) {
+      try {
+        if (!recordsLoadState.ok && !replaceInvalid) throw new Error("Saved data could not be read. Import a valid backup before changing records.");
+        validateVisitRecords(candidate);
+        localStorage.setItem("visitRecords", JSON.stringify(candidate));
+        return true;
+      } catch (error) {
+        console.error("Unable to save visit records:", error);
+        if (notify) alert(`Could not save visit records. Your current data remains in the app. ${error.message}`);
+        return false;
+      }
+    }
+    function addVisitRecord(record) {
+      const candidate = [...visitRecords, record];
+      if (!saveVisitRecords(candidate)) return false;
+      visitRecords = candidate;
+      return true;
+    }
+    function updateVisitRecord(record) {
+      const index = visitRecords.findIndex(item => item.id === record.id);
+      const candidate = [...visitRecords];
+      if (index < 0) candidate.push(record); else candidate[index] = record;
+      if (!saveVisitRecords(candidate)) return false;
+      visitRecords = candidate;
+      return true;
+    }
+    function deleteVisitRecord(id) {
+      const candidate = visitRecords.filter(item => item.id !== id);
+      if (!saveVisitRecords(candidate)) return false;
+      visitRecords = candidate;
+      return true;
+    }
+    if (!recordsLoadState.ok) setTimeout(() => alert(`${recordsLoadState.error.message}\n\nExport is unavailable until the saved data is repaired. Importing a valid backup can replace it.`), 0);
 
 
     function exportBackup() {
+     if (!recordsLoadState.ok) {
+       alert("Backup export stopped because the saved visit records could not be read. Import a valid backup after reviewing the reported error.");
+       return;
+     }
     // Prepare the backup data
      const backupData = {
       app: "My Track Passport",
@@ -1471,7 +1539,7 @@ async function importBackup(event) {
     // Convert JSON text into JavaScript data
     const backupData = JSON.parse(text);
 
-    // Check whether this is a valid backup file
+    // Validate the full candidate before changing the current records.
     if (
       !backupData ||
       typeof backupData !== "object" ||
@@ -1483,20 +1551,7 @@ async function importBackup(event) {
     }
 
 
-    // Check the structure of each visit record
-    const validRecords = backupData.visitRecords.every(record =>
-      record &&
-      typeof record === "object" &&
-      typeof record.id === "string" &&
-      record.id.trim() !== "" &&
-      typeof record.trackId === "string" &&
-      record.trackId.trim() !== "" &&
-      ["training", "competition", "spectating"].includes(record.type)
-    );
-
-    if (!validRecords) {
-      throw new Error("Some visit records have an invalid format.");
-    }
+    validateVisitRecords(backupData.visitRecords);
 
     // Ask for confirmation before replacing existing data
     const confirmed = confirm(
@@ -1507,11 +1562,10 @@ async function importBackup(event) {
 
     if (!confirmed) return;
 
-    // Replace current records with backup records
+    // Save first; only commit in-memory state after storage confirms success.
+    if (!saveVisitRecords(backupData.visitRecords, { replaceInvalid: true, notify: false })) throw new Error("The backup passed validation, but could not be saved. Current records were retained.");
     visitRecords = backupData.visitRecords;
-
-    // Save and refresh the application
-    saveVisitRecords();
+    recordsLoadState = { ok: true, records: visitRecords };
 
     updateAllViews();
 
@@ -1928,7 +1982,7 @@ form.appendChild(actions);
              "Start time",
              "time",
              "training-start-time",
-             {required:true}
+             {required:false}
             );
 
           addField(
@@ -1937,7 +1991,7 @@ form.appendChild(actions);
             "text",
             "training-duration",
           {
-            required:true,
+            required:false,
             placeholder:"e.g. 01:15"
            }
         );
@@ -1983,7 +2037,7 @@ form.appendChild(actions);
             const row = document.createElement("div"); row.className = "event-row";
             const category = addField(row, "Event type", "select", "competition-event-category", {required:true,items:[{value:"track",label:"Track"},{value:"field",label:"Field"}]});
             const eventSelect = addField(row, "Event", "select", "competition-event-select", {required:true,items:trackEvents.map(([name])=>({value:name,label:name}))});
-            const eventStartTime = addField(row, "Event start time", "time", "competition-event-start-time", { required: true });
+            const eventStartTime = addField(row, "Event start time", "time", "competition-event-start-time", { required: false });
             
             const dynamic = document.createElement("div"); dynamic.className = "event-dynamic-fields"; row.appendChild(dynamic);
             const resultContainer = document.createElement("div"); resultContainer.className = "competition-result-container"; row.appendChild(resultContainer);
@@ -2086,23 +2140,23 @@ form.appendChild(actions);
         renderModeFields();
         notesInput.value = recordToEdit.notes || "";
         const dateInput = fields.querySelector(".visit-date");
-        if (dateInput) dateInput.value = recordToEdit.date || todayString();
+        if (dateInput) dateInput.value = recordToEdit.date || "";
         if (recordToEdit.type === "training") {
           const distanceInput = fields.querySelector(".training-distance");
           if (distanceInput) distanceInput.value = (Number(recordToEdit.distanceMetres || 0) / 1000).toString();
         } 
         const startTimeInput = fields.querySelector(".training-start-time");
 if (startTimeInput) {
-  startTimeInput.value = recordToEdit.startTime || "18:45";
+  startTimeInput.value = recordToEdit.startTime || "";
 }
 
 const durationInput = fields.querySelector(".training-duration");
 if (durationInput) {
-  const minutes = Number(recordToEdit.durationMinutes || 45);
+  const minutes = recordToEdit.durationMinutes == null ? null : Number(recordToEdit.durationMinutes);
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
 
-  durationInput.value =
+  durationInput.value = minutes == null ? "" :
     `${String(hours).padStart(2, "0")}:${String(remainingMinutes).padStart(2, "0")}`;
 }
         else if (recordToEdit.type === "spectating") {
@@ -2141,7 +2195,7 @@ const eventStartTimeInput =
   row.querySelector(".competition-event-start-time");
 
 if (eventStartTimeInput) {
-  eventStartTimeInput.value = saved.startTime || "19:00";
+  eventStartTimeInput.value = saved.startTime || "";
 }
 
               const category = row.querySelector(".competition-event-category");
@@ -2202,22 +2256,15 @@ if (eventStartTimeInput) {
     return;
   }
 
-  if (!startTime) {
-    alert("Please enter the training start time.");
-    return;
-  }
-
-  const durationMatch = durationText.match(/^(\d{2,}):([0-5]\d)$/);
-
-  if (!durationMatch) {
+  const durationMatch = durationText ? durationText.match(/^(\d{2,}):([0-5]\d)$/) : null;
+  if (durationText && !durationMatch) {
     alert("Please enter the training duration in HH:MM format, e.g. 01:15.");
     return;
   }
 
-  const durationMinutes =
-    Number(durationMatch[1]) * 60 + Number(durationMatch[2]);
+  const durationMinutes = durationMatch ? Number(durationMatch[1]) * 60 + Number(durationMatch[2]) : null;
 
-  if (durationMinutes <= 0) {
+  if (durationMinutes !== null && durationMinutes <= 0) {
     alert("Training duration must be greater than 00:00.");
     return;
   }
@@ -2225,7 +2272,7 @@ if (eventStartTimeInput) {
   record = createVisitRecord(card.dataset.trackId, "training", {
     date,
     distanceMetres: Math.round(km * 1000),
-    startTime,
+    startTime: startTime || null,
     durationMinutes
   });
 }
@@ -2242,7 +2289,7 @@ if (eventStartTimeInput) {
 
           const events = rows.map(row => {
              const startTime =
-             row.querySelector(".competition-event-start-time").value;
+             row.querySelector(".competition-event-start-time").value || null;
 
             const category = row.querySelector(".competition-event-category").value;
             const selectedName = row.querySelector(".competition-event-select").value;
@@ -2293,7 +2340,7 @@ if (eventStartTimeInput) {
           if (!eventName) { alert("Please enter the competition name."); return; }
           if (!events.length || events.some((item, index) => {
             const row = rows[index];
-            if (!item.eventName || !item.startTime || !item.result) return true;
+            if (!item.eventName || !item.result) return true;
             if (item.selectedEvent === "1 hour run" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres <= 0)) return true;
             if (item.selectedEvent === "Other" && !row.querySelector(".competition-custom-name")?.value.trim()) return true;
             if (item.selectedEvent === "Other" && item.eventCategory === "track" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres < 0)) return true;
@@ -2361,17 +2408,15 @@ record = createVisitRecord(card.dataset.trackId, "competition", {
 
         }
         record.notes = notesInput.value.trim();
+        let saved = false;
         if (recordToEdit) {
           record.id = recordToEdit.id;
           record.createdAt = recordToEdit.createdAt || record.createdAt;
-          const index = visitRecords.findIndex(item => item.id === recordToEdit.id);
-          if (index >= 0) visitRecords[index] = record;
-          else visitRecords.push(record);
+          saved = updateVisitRecord(record);
         } else {
-          visitRecords.push(record);
+          saved = addVisitRecord(record);
         }
-
-saveVisitRecords();
+        if (!saved) return;
 
 container.style.display = "none";
 container.replaceChildren();
@@ -2442,8 +2487,8 @@ updateAllViews();
         const lines = [`${typeNames[record.type] || record.type} · ${record.date || "Date unknown"}`];
 
         if (record.type === "training") {
-  lines.push(`Start time: ${record.startTime || "18:45"}`);
-  lines.push(`Duration: ${formatDuration(record.durationMinutes ?? 45)}`);
+  lines.push(`Start time: ${record.startTime || "unknown"}`);
+  lines.push(`Duration: ${record.durationMinutes == null ? "unknown" : formatDuration(record.durationMinutes)}`);
   lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
 }
 
@@ -2453,7 +2498,7 @@ updateAllViews();
 
   (record.events || []).forEach(event =>
   lines.push(
-    `${event.startTime || "19:00"} - ${event.eventName}: ${event.result}`
+    `${event.startTime || "unknown start time"} - ${event.eventName || "Event not recorded"}: ${event.result || "Result not recorded"}`
   )
 );
 
@@ -2489,7 +2534,7 @@ updateAllViews();
        });
        actions.appendChild(edit);
         const remove = document.createElement("button"); remove.type = "button"; remove.className = "danger"; remove.textContent = "Delete visit";
-        remove.addEventListener("click", () => { if (confirm("Delete this visit record? This cannot be undone.")) { visitRecords = visitRecords.filter(entry => entry.id !== record.id); saveVisitRecords(); updateAllViews(); } });
+        remove.addEventListener("click", () => { if (confirm("Delete this visit record? This cannot be undone.")) { if (deleteVisitRecord(record.id)) updateAllViews(); } });
         actions.appendChild(remove); item.appendChild(actions); list.appendChild(item);
       });
     }
@@ -2550,8 +2595,8 @@ function toggleTrackHistory(button) {
         const detail = document.createElement("p");
         const lines = [];
         if (record.type === "training") {
-  lines.push(`Start time: ${record.startTime || "18:45"}`);
-  lines.push(`Duration: ${formatDuration(record.durationMinutes ?? 45)}`);
+  lines.push(`Start time: ${record.startTime || "unknown"}`);
+  lines.push(`Duration: ${record.durationMinutes == null ? "unknown" : formatDuration(record.durationMinutes)}`);
   lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
 }
         if (record.type === "competition") {
@@ -2559,7 +2604,7 @@ function toggleTrackHistory(button) {
 
 (record.events || []).forEach(event =>
   lines.push(
-    `${event.startTime || "19:00"} - ${event.eventName}: ${event.result}`
+    `${event.startTime || "unknown start time"} - ${event.eventName || "Event not recorded"}: ${event.result || "Result not recorded"}`
   )
 );
 
@@ -2594,9 +2639,7 @@ function toggleTrackHistory(button) {
         remove.textContent = "Delete visit";
         remove.addEventListener("click", () => {
           if (!confirm("Delete this visit record? This cannot be undone.")) return;
-          visitRecords = visitRecords.filter(item => item.id !== record.id);
-          saveVisitRecords();
-          updateAllViews();
+          if (deleteVisitRecord(record.id)) updateAllViews();
         });
         row.appendChild(remove);
         list.appendChild(row);
@@ -2723,7 +2766,7 @@ function showPage(page) {
     initialiseDirectoryMap();
     window.setTimeout(() => {
       if (directoryMap) directoryMap.invalidateSize();
-      refreshDirectoryMap();
+      refreshDirectoryMap({ fitBounds: !directoryMapHasInitialFit });
     }, 100);
   }
 }
@@ -2733,6 +2776,7 @@ function showPage(page) {
 let directoryView = "map";
 let directoryMap = null;
 let directoryMapMarkers = [];
+let directoryMapHasInitialFit = false;
 
 let userLocationMarker = null;
 let userLocation = null;
@@ -2967,13 +3011,20 @@ if (distanceMode) {
   cards.forEach(card => list.appendChild(card));
 }
 
-// Prepare the dropdown so the same option can be selected again
+// Add a temporary selection so every sort option can trigger a change event.
 function prepareTrackSortSelection() {
   const sortSelect = document.getElementById("track-sort-select");
 
-  if (trackSortOrder === "near-custom") {
-    sortSelect.value = "az";
-  }
+  if (trackSortOrder !== "near-custom" ||
+      sortSelect.querySelector('[data-sort-placeholder="true"]')) return;
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "__sort-placeholder__";
+  placeholder.textContent = "Choose sorting...";
+  placeholder.disabled = true;
+  placeholder.dataset.sortPlaceholder = "true";
+  sortSelect.insertBefore(placeholder, sortSelect.firstChild);
+  sortSelect.value = placeholder.value;
 }
 
 
@@ -2982,11 +3033,14 @@ function prepareTrackSortSelection() {
 function restoreTrackSortSelection() {
   const sortSelect = document.getElementById("track-sort-select");
 
+  sortSelect.querySelector('[data-sort-placeholder="true"]')?.remove();
   sortSelect.value = trackSortOrder;
 }
 
 // Handle changes to the Sort by menu
 function changeTrackSort(value) {
+
+  document.querySelector('#track-sort-select [data-sort-placeholder="true"]')?.remove();
 
 // Near selected location mode
 if (value === "near-custom") {
@@ -3244,7 +3298,7 @@ function setDirectoryView(view) {
     initialiseDirectoryMap();
     window.setTimeout(() => {
       if (directoryMap) directoryMap.invalidateSize();
-      refreshDirectoryMap();
+      refreshDirectoryMap({ fitBounds: !directoryMapHasInitialFit });
     }, 100);
   }
   if (!isMap) {
@@ -3312,7 +3366,7 @@ directoryMap.on('zoomend moveend', updateTrackLabels);
 updateTrackLabels();
 }
 
-function refreshDirectoryMap() {
+function refreshDirectoryMap({ fitBounds = false } = {}) {
   if (!directoryMap) return;
 
   directoryMapMarkers.forEach(marker => directoryMap.removeLayer(marker));
@@ -3350,7 +3404,7 @@ function refreshDirectoryMap() {
     directoryMapMarkers.push(marker);
   });
 
-  if (visibleCards.length) {
+  if (fitBounds) {
     const points = visibleCards
       .map(card => trackMapLocations[card.dataset.trackId])
       .filter(Boolean)
@@ -3360,6 +3414,7 @@ function refreshDirectoryMap() {
       const bounds = L.latLngBounds(points);
       if (bounds.isValid()) {
         directoryMap.fitBounds(bounds, { padding: [35, 35], maxZoom: 12 });
+        directoryMapHasInitialFit = true;
       }
     }
   }
@@ -3643,7 +3698,6 @@ document.addEventListener("touchend", event => {
       updateCount();
       renderHistory();
       filterTracks();
-      refreshDirectoryMap();
     }
 
     
@@ -3668,26 +3722,44 @@ document.addEventListener("touchend", event => {
     });
 
     console.log("Track cards loaded successfully.");
+    return true;
   } catch (error) {
     console.error("Error loading track cards:", error);
-    document.getElementById("track-list-view").textContent =
-      "Unable to load track cards. Please refresh the page.";
+    const container = document.getElementById("track-list-view");
+    container.replaceChildren();
+    const message = document.createElement("p");
+    message.textContent = `Unable to load Track Directory: ${error.message}`;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "Retry loading tracks";
+    retry.addEventListener("click", async () => {
+      if (await loadTrackCards()) {
+        loadTrackCardData();
+        sortTrackCards();
+        updateAllViews();
+        setDirectoryView("map");
+      }
+    });
+    container.append(message, retry);
+    return false;
   }
 }
 
 async function initApp() {
-  await loadTrackCards();
-  loadTrackCardData();
-
   document.getElementById("track-search").addEventListener("input", filterTracks);
   document.getElementById("history-type-filter").addEventListener("change", renderHistory);
   document.getElementById("backup-file").addEventListener("change", importBackup);
 
-  sortTrackCards();
   showPage("records");
-  updateAllViews();
-  setDirectoryView("map");
-  saveVisitRecords();
+  updateCount();
+  renderHistory();
+  filterTracks();
+  if (await loadTrackCards()) {
+    loadTrackCardData();
+    sortTrackCards();
+    updateAllViews();
+    setDirectoryView("map");
+  }
 }
 
 initApp();
