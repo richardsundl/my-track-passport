@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f3f5f2">
+  <title>GPX Track Viewer · My Track Passport</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root { color-scheme: light; --ink:#1c3028; --muted:#718078; --line:#e4e9e5; --green:#176b4b; --wash:#f3f5f2; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--wash); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    button { font:inherit; }
+    .shell { max-width:1180px; margin:auto; padding:30px 28px 50px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:30px; }
+    .brand { display:flex; align-items:center; gap:11px; font-size:14px; font-weight:750; letter-spacing:.01em; }
+    .brand-mark { display:grid; place-items:center; width:35px; height:35px; border-radius:11px; color:white; background:#183f31; }
+    .brand-mark svg { width:20px; }
+    .back { color:#53635b; text-decoration:none; font-size:13px; font-weight:600; }
+    .back:hover { color:var(--green); }
+    .intro { margin-bottom:22px; }
+    .eyebrow { margin:0 0 8px; color:var(--green); font-size:11px; text-transform:uppercase; letter-spacing:.13em; font-weight:800; }
+    h1 { margin:0; font-size:clamp(28px,4vw,38px); letter-spacing:-.045em; line-height:1.1; }
+    .subtitle { margin:10px 0 0; color:var(--muted); font-size:14px; }
+    .workspace { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(285px,.85fr); gap:18px; align-items:stretch; }
+    .map-card,.side-card { background:#fff; border:1px solid var(--line); border-radius:17px; overflow:hidden; box-shadow:0 5px 22px #20352c08; }
+    .map-head { height:58px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; border-bottom:1px solid var(--line); }
+    .map-label { display:flex; align-items:center; gap:8px; font-weight:700; font-size:13px; }
+    .live-dot { width:8px;height:8px;background:#63a77e;border-radius:50%; }
+    .map-hint { color:#8a9690; font-size:11px; }
+    #map { min-height:490px; height:calc(100vh - 300px); max-height:680px; background:#e9efeb; }
+    .side-card { padding:20px; }
+    .upload { position:relative; padding:20px 15px; border:1px dashed #b9c9bf; border-radius:13px; text-align:center; background:#f8faf8; transition:.2s; }
+    .upload.drag { border-color:var(--green); background:#edf6f0; }
+    .upload-icon { margin:0 auto 10px; width:37px;height:37px;border-radius:12px;background:#e6f1e9;color:var(--green);display:grid;place-items:center; }
+    .upload-icon svg { width:20px; }
+    .upload strong { display:block; font-size:13px; }
+    .upload p { color:var(--muted);font-size:11px;margin:5px 0 13px; }
+    .choose { border:0;border-radius:8px;background:#1b6247;color:white;font-weight:700;font-size:12px;padding:9px 14px;cursor:pointer; }
+    .choose:hover { background:#124c36; }
+    #file-input { display:none; }
+    .file-name { display:none; margin-top:10px; color:#53635b; font-size:11px; overflow-wrap:anywhere; }
+    .section-title { margin:22px 0 12px; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#65756c; }
+    .activity-title { min-height:24px; margin:0; font-size:17px; letter-spacing:-.02em; overflow-wrap:anywhere; }
+    .activity-type { display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:5px 9px; border-radius:20px; background:#edf5ef; color:#286348; font-size:10px; font-weight:750; text-transform:capitalize; }
+    .stats { display:grid; grid-template-columns:1fr 1fr; margin-top:17px; border-top:1px solid var(--line); }
+    .stat { padding:14px 7px 10px 0; border-bottom:1px solid var(--line); }
+    .stat:nth-child(odd) { border-right:1px solid var(--line); }
+    .stat:nth-child(even) { padding-left:14px; }
+    .stat-label { display:block; color:#88948d; font-size:10px; margin-bottom:6px; }
+    .stat-value { font-size:15px; font-weight:750; font-variant-numeric:tabular-nums; }
+    .stat-value.small { font-size:12px; }
+    .empty-note { margin:17px 0 0; padding:12px; border-radius:10px; background:#f7f9f7; color:#728077; font-size:11px; line-height:1.55; }
+    .status { min-height:18px; margin:12px 0 0; color:#718078; font-size:11px; }
+    .status.error { color:#a23b36; }
+    .trim-panel { display:none; margin-top:18px; padding:14px; border:1px solid var(--line); border-radius:12px; background:#fbfcfb; }
+    .trim-heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .trim-heading strong { font-size:12px; }
+    .trim-reset { border:0; background:transparent; color:var(--green); font-size:11px; font-weight:700; cursor:pointer; }
+    .trim-control { margin-top:12px; }
+    .trim-label { display:flex; justify-content:space-between; gap:8px; margin-bottom:5px; color:#718078; font-size:10px; }
+    .trim-label output { color:#314b3c; font-weight:700; text-align:right; }
+    .trim-control input { display:block; width:100%; accent-color:#18744f; cursor:ew-resize; }
+    .trim-legend { display:flex; align-items:center; gap:12px; margin-top:12px; color:#7b8981; font-size:10px; }
+    .legend-item { display:inline-flex; align-items:center; gap:5px; }
+    .legend-line { display:inline-block; width:16px; border-top:3px solid #18845a; border-radius:3px; }
+    .legend-line.removed { border-color:#bec8c1; }
+    .legend-line.counted { border-color:#167ba0; }
+    .legend-area { width:12px;height:10px;border:1px solid #7351b7;background:#9575cd55;border-radius:2px; }
+    .pace-card { display:none; margin-top:18px; padding:20px 22px 14px; background:#fff; border:1px solid var(--line); border-radius:17px; box-shadow:0 5px 22px #20352c08; }
+    .pace-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+    .pace-heading { min-width:0; }
+    .pace-tools { display:flex; align-items:center; gap:6px; }
+    .zoom-label { margin-right:4px; color:#829087; font-size:10px; }
+    .zoom-button { display:grid; place-items:center; min-width:30px; height:30px; padding:0 8px; border:1px solid var(--line); border-radius:8px; background:#fff; color:#385246; font-size:15px; font-weight:700; cursor:pointer; }
+    .zoom-button:hover:not(:disabled) { background:#edf5ef; border-color:#b9c9bf; }
+    .zoom-button:disabled { color:#b7c0bb; cursor:default; }
+    .pace-title { margin:0; font-size:15px; letter-spacing:-.02em; }
+    .pace-subtitle { margin:5px 0 0; color:var(--muted); font-size:11px; }
+    .pace-readout { min-width:130px; text-align:right; color:#63746a; font-size:11px; font-variant-numeric:tabular-nums; }
+    .pace-readout span { display:block; }
+    #pace-mode { color:#829087; font-size:10px; }
+    .pace-readout strong { display:block; color:#176b4b; font-size:17px; }
+    .pace-plot { width:100%; height:auto; min-height:190px; margin-top:12px; display:block; touch-action:none; cursor:crosshair; }
+    .time-scroll { position:relative; height:24px; margin:0 22px 4px 68px; touch-action:none; cursor:grab; user-select:none; }
+    .time-scroll:active { cursor:grabbing; }
+    .time-scroll-track { position:absolute; left:0; right:0; top:5px; height:12px; overflow:hidden; border-radius:7px; background:#edf1ee; }
+    .time-scroll-window { position:absolute; top:0; bottom:0; min-width:12px; border:1px solid #408267; border-radius:7px; background:#83b69d99; box-shadow:0 1px 3px #20352c20; }
+    .time-scroll-window::after { content:""; position:absolute; left:50%; top:2px; bottom:2px; border-left:2px dotted #fff; transform:translateX(-50%); }
+    .time-scroll.disabled { opacity:.48; cursor:default; }
+    .pace-plot text { fill:#829087; font:11px Inter,system-ui,sans-serif; }
+    .pace-grid { stroke:#e8ede9; stroke-width:1; }
+    .pace-line { fill:none; stroke:#187a55; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+    .pace-axis { stroke:#bfcac2; stroke-width:1; }
+    .pace-cursor { fill:#fff; stroke:#d76c4a; stroke-width:3; }
+    .pace-empty { display:none; min-height:170px; place-items:center; color:#829087; font-size:12px; text-align:center; }
+    .map-empty { display:flex; height:100%; min-height:490px; flex-direction:column; align-items:center; justify-content:center; color:#75857b; text-align:center; padding:24px; }
+    .map-empty svg { width:55px; height:55px; color:#9eafa4; margin-bottom:14px; }
+    .map-empty strong { color:#43564b;font-size:14px; }
+    .map-empty span { max-width:235px;margin-top:6px;font-size:12px;line-height:1.5; }
+    .leaflet-container { font:inherit; }
+    .leaflet-popup-content-wrapper { border-radius:10px; }
+    .leaflet-popup-content { margin:11px 14px; font-size:12px; }
+    @media(max-width:780px) { .shell{padding:22px 16px 36px}.workspace{grid-template-columns:1fr}.side-card{order:-1}#map{height:56vh;min-height:360px}.map-empty{min-height:360px}.topbar{margin-bottom:24px} }
+    @media(max-width:650px) { .pace-head{flex-wrap:wrap}.pace-heading{flex:1 1 55%}.pace-tools{order:3;flex:1 1 auto}.pace-readout{margin-left:auto} }
+    @media(max-width:420px) { .map-hint{display:none}.shell{padding-left:12px;padding-right:12px} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <nav class="topbar" aria-label="Main navigation">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 18.5c3.1 0 3.6-8 7-8s3.7 5 6.3 5S20 10 20 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="4" cy="18.5" r="2" fill="currentColor"/><circle cx="20" cy="6" r="2" fill="currentColor"/></svg></span> My Track Passport</div>
+      <a class="back" href="index.html">← Back to passport</a>
+    </nav>
+    <section class="intro"><p class="eyebrow">Activity importer · Preview</p><h1>Your route, on the map.</h1><p class="subtitle">Drop in a GPX file to explore your activity and its key stats.</p></section>
+    <section class="workspace">
+      <article class="map-card">
+        <div class="map-head"><div class="map-label"><span class="live-dot"></span> Route map</div><span class="map-hint" id="point-hint">Waiting for a GPX file</span></div>
+        <div id="map"><div class="map-empty" id="map-empty"><svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M12 49 25 18l15 29 12-30" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="49" r="5" fill="#eef4ef" stroke="currentColor" stroke-width="3"/><circle cx="52" cy="17" r="5" fill="#eef4ef" stroke="currentColor" stroke-width="3"/><path d="m22 42 7-4 8 5 7-3" stroke="#7ca58a" stroke-width="2" stroke-dasharray="3 4"/></svg><strong>Your next activity starts here</strong><span>Upload a GPX track and the route will appear on this map.</span></div></div>
+      </article>
+      <aside class="side-card">
+        <div class="upload" id="drop-zone">
+          <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <strong>Import a GPX file</strong><p>Choose a file or drag it into this area</p>
+          <button class="choose" id="choose-file" type="button">Choose GPX file</button>
+          <input id="file-input" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml">
+          <div class="file-name" id="file-name"></div>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+        <section class="trim-panel" id="trim-panel" aria-label="Trim activity">
+          <div class="trim-heading"><strong>Trim activity</strong><button class="trim-reset" id="trim-reset" type="button">Reset</button></div>
+          <div class="trim-control"><label class="trim-label" for="trim-start"><span>New start</span><output id="trim-start-label">—</output></label><input id="trim-start" type="range" min="0" max="1" value="0" aria-label="Move activity start forward"></div>
+          <div class="trim-control"><label class="trim-label" for="trim-end"><span>New finish</span><output id="trim-end-label">—</output></label><input id="trim-end" type="range" min="0" max="1" value="1" aria-label="Move activity finish earlier"></div>
+          <div class="trim-legend"><span class="legend-item"><i class="legend-line"></i> Kept</span><span class="legend-item"><i class="legend-line removed"></i> Trimmed away</span><span class="legend-item"><i class="legend-line counted"></i> Counted in area</span><span class="legend-item"><i class="legend-area"></i> Counted area</span></div>
+        </section>
+        <div class="section-title">Activity summary</div>
+        <h2 class="activity-title" id="activity-name">No activity loaded</h2><span class="activity-type" id="activity-type" hidden>Activity</span>
+        <div class="stats" aria-live="polite">
+          <div class="stat"><span class="stat-label">Start time</span><span class="stat-value small" id="start-time">—</span></div>
+          <div class="stat"><span class="stat-label">Duration</span><span class="stat-value" id="duration">—</span></div>
+          <div class="stat"><span class="stat-label">Distance in area</span><span class="stat-value" id="distance">—</span></div>
+          <div class="stat"><span class="stat-label">Track points</span><span class="stat-value" id="points">—</span></div>
+          <div class="stat"><span class="stat-label">Elevation gain</span><span class="stat-value" id="elevation-gain">—</span></div>
+          <div class="stat"><span class="stat-label">Elevation range</span><span class="stat-value" id="elevation-range">—</span></div>
+        </div>
+        <p class="empty-note">Your file is read locally in this browser. This preview does not upload or save activity data yet.</p>
+      </aside>
+    </section>
+    <section class="pace-card" id="pace-card" aria-label="Pace chart">
+      <div class="pace-head"><div class="pace-heading"><h2 class="pace-title">Pace over time</h2><p class="pace-subtitle">5-second rolling pace · recording gaps over 15 seconds break the line · hover to follow, click to pin a point.</p></div><div class="pace-tools" aria-label="Horizontal axis zoom"><span class="zoom-label">Time zoom</span><button class="zoom-button" id="zoom-out" type="button" title="Zoom out time axis" aria-label="Zoom out">−</button><button class="zoom-button" id="zoom-in" type="button" title="Zoom in time axis" aria-label="Zoom in">+</button><button class="zoom-button" id="zoom-reset" type="button" title="Reset time zoom" aria-label="Reset zoom">Reset</button></div><div class="pace-readout"><span id="pace-mode">Hover mode</span><span id="pace-time-readout">Hover over chart</span><strong id="pace-value-readout">—</strong><span id="pace-elapsed-readout">Elapsed —</span><span id="pace-distance-readout">Distance —</span></div></div>
+      <div class="pace-empty" id="pace-empty">This activity has no usable time and distance samples inside the selected area.</div>
+      <svg class="pace-plot" id="pace-chart" viewBox="0 0 900 270" role="img" aria-label="Pace over time chart"></svg>
+      <div class="time-scroll disabled" id="time-scroll" role="scrollbar" aria-label="Scroll through activity time" aria-controls="pace-chart" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="time-scroll-track"><div class="time-scroll-window" id="time-scroll-window"></div></div></div>
+    </section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      const input = $('file-input'), zone = $('drop-zone');
+      let map = null, routeLayer = null, markers = null, areaLayer = null, paceMarker = null, activity = null, trimStart = 0, trimEnd = 0, paceSamples = [], paceSelected = [], pacePinned = false, paceViewStart = null, paceViewEnd = null, paceFullStart = null, paceFullEnd = null;
+      const targetArea = [[51.437373277295215,-0.20769334930205566],[51.43799313032984,-0.20641572329190547],[51.439389957968,-0.2083079589006437],[51.438689484909,-0.2096667859719787]];
+      const setStatus = (message, error = false) => { $('status').textContent = message; $('status').classList.toggle('error', error); };
+      const localName = (node) => node.localName || node.nodeName.split(':').pop();
+      const children = (node, name) => Array.from(node.children || []).filter(child => localName(child) === name);
+      const first = (node, name) => children(node, name)[0] || null;
+      const textOf = (node, name) => { const found = first(node, name); return found ? found.textContent.trim() : ''; };
+      const parseTime = value => { if (!value) return null; const date = new Date(value); return Number.isNaN(date.getTime()) ? null : date; };
+      const haversine = (a, b) => {
+        const rad = n => n * Math.PI / 180, dLat = rad(b.lat-a.lat), dLon = rad(b.lon-a.lon);
+        const h = Math.sin(dLat/2)**2 + Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
+        return 6371008.8 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
+      };
+      const cross = (ax,ay,bx,by) => ax*by-ay*bx;
+      function pointInArea(p) {
+        const x=p.lon,y=p.lat; let inside=false;
+        for(let i=0,j=targetArea.length-1;i<targetArea.length;j=i++) {
+          const [yi,xi]=targetArea[i],[yj,xj]=targetArea[j];
+          if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+        }
+        return inside;
+      }
+      function segmentAreaIntervals(a,b) {
+        const x=a.lon,y=a.lat, dx=b.lon-a.lon,dy=b.lat-a.lat, cuts=[0,1];
+        for(let i=0;i<targetArea.length;i++) {
+          const c=targetArea[i],d=targetArea[(i+1)%targetArea.length];
+          const sx=d[1]-c[1],sy=d[0]-c[0], denom=cross(dx,dy,sx,sy);
+          if(Math.abs(denom)<1e-14) continue;
+          const t=cross(c[1]-x,c[0]-y,sx,sy)/denom, u=cross(c[1]-x,c[0]-y,dx,dy)/denom;
+          if(t>=0&&t<=1&&u>=0&&u<=1) cuts.push(t);
+        }
+        cuts.sort((u,v)=>u-v);
+        const unique=cuts.filter((t,i)=>!i||Math.abs(t-cuts[i-1])>1e-9), intervals=[];
+        for(let i=0;i<unique.length-1;i++) {
+          const from=unique[i],to=unique[i+1],mid=(from+to)/2;
+          if(to-from>1e-9&&pointInArea({lat:y+dy*mid,lon:x+dx*mid})) intervals.push([from,to]);
+        }
+        return intervals;
+      }
+      const interpolatePoint=(a,b,t)=>({lat:a.lat+(b.lat-a.lat)*t,lon:a.lon+(b.lon-a.lon)*t});
+      const fmtDuration = ms => { let sec = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s=sec%60; return h ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s).padStart(2,'0')}s`; };
+      const fmtElapsed = ms => { let sec=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; };
+      const fmtStart = date => new Intl.DateTimeFormat(undefined, { dateStyle:'medium', timeStyle:'short' }).format(date);
+      const fmtClock = date => new Intl.DateTimeFormat(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(date);
+      const fmtPace = seconds => { const s=Math.max(0,Math.round(seconds)); return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; };
+      const fmtDistance = meters => meters>=1000?`${(meters/1000).toFixed(2)} km`:`${Math.round(meters)} m`;
+      const compact = n => new Intl.NumberFormat(undefined, { maximumFractionDigits:0 }).format(n);
+      function initMap() {
+        if (map) return;
+        map = L.map('map', { scrollWheelZoom:true });
+        const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' });
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19, attribution:'Tiles &copy; Esri &mdash; Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community' });
+        street.addTo(map);
+        L.control.layers({ 'Street map':street, 'Satellite':satellite }, null, { position:'topright', collapsed:false }).addTo(map);
+        areaLayer=L.polygon(targetArea,{color:'#7351b7',weight:2,opacity:.95,fillColor:'#9575cd',fillOpacity:.24}).addTo(map).bindPopup('Distance is counted inside this area');
+        map.setView([51.505,-0.09], 12);
+      }
+      function parseGpx(xml) {
+        const doc = new DOMParser().parseFromString(xml, 'application/xml');
+        if (doc.querySelector('parsererror') || localName(doc.documentElement) !== 'gpx') throw new Error('This file does not look like valid GPX.');
+        const track = Array.from(doc.getElementsByTagName('*')).find(el => localName(el) === 'trk');
+        const route = Array.from(doc.getElementsByTagName('*')).find(el => localName(el) === 'rte');
+        const container = track || route;
+        if (!container) throw new Error('No track or route was found in this GPX file.');
+        const segments = track ? children(container, 'trkseg').map(seg => children(seg, 'trkpt')) : [children(route, 'rtept')];
+        const parsed = segments.map(seg => seg.map(pt => { const eleText=textOf(pt,'ele'); return { lat:Number(pt.getAttribute('lat')), lon:Number(pt.getAttribute('lon')), ele:eleText===''?NaN:Number(eleText), time:parseTime(textOf(pt,'time')) }; })
+          .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat)<=90 && Math.abs(p.lon)<=180)).filter(seg => seg.length);
+        const points = parsed.flat();
+        if (!points.length) throw new Error('No usable GPS points were found in this file.');
+        let pointIndex=0;
+        parsed.forEach((seg, segmentIndex) => seg.forEach(p => { p.index=pointIndex++; p.segmentIndex=segmentIndex; }));
+        const metadata = Array.from(doc.getElementsByTagName('*')).find(el=>localName(el)==='metadata');
+        const name = textOf(container,'name') || (metadata && textOf(metadata,'name')) || 'Untitled activity';
+        const type = textOf(container,'type');
+        return { name,type,segments:parsed,points,metadataStart:parseTime(metadata && textOf(metadata,'time')) };
+      }
+      function showActivity(data) {
+        initMap();
+        if(paceMarker){map.removeLayer(paceMarker);paceMarker=null;}
+        $('map-empty')?.remove();
+        $('activity-name').textContent=data.name;
+        const typeTag=$('activity-type'); typeTag.hidden=!data.type; typeTag.textContent=data.type || 'Activity';
+        activity=data; trimStart=0; trimEnd=data.points.length-1;
+        const startSlider=$('trim-start'), endSlider=$('trim-end');
+        startSlider.min='0'; endSlider.min='1'; startSlider.max=String(trimEnd-1); endSlider.max=String(trimEnd); startSlider.value='0'; endSlider.value=String(trimEnd);
+        $('trim-panel').style.display=data.points.length>1?'block':'none';
+        renderTrim(true);
+      }
+      function pointTime(point) { return point && point.time ? point.time : null; }
+      function timeAtEdge(a,b,fraction) {
+        if(a.time&&b.time) return new Date(a.time.getTime()+(b.time.getTime()-a.time.getTime())*fraction);
+        if(fraction<=1e-9) return a.time;
+        if(fraction>=1-1e-9) return b.time;
+        return null;
+      }
+      function selectedStats() {
+        const selected=activity.points.slice(trimStart,trimEnd+1); let distance=0,gain=0,areaStart=null,areaEnd=null; const elevations=[];
+        for(let i=0;i<selected.length;i++) {
+          const p=selected[i], prev=selected[i-1];
+          if(prev && prev.segmentIndex===p.segmentIndex) {
+            for(const [from,to] of segmentAreaIntervals(prev,p)) {
+              distance+=haversine(interpolatePoint(prev,p,from),interpolatePoint(prev,p,to));
+              const intervalStart=timeAtEdge(prev,p,from),intervalEnd=timeAtEdge(prev,p,to);
+              if(!areaStart&&intervalStart) areaStart=intervalStart;
+              if(intervalEnd) areaEnd=intervalEnd;
+            }
+            if(Number.isFinite(prev.ele)&&Number.isFinite(p.ele)&&p.ele-prev.ele>0.8) gain+=p.ele-prev.ele;
+          }
+          if(Number.isFinite(p.ele)) elevations.push(p.ele);
+        }
+        return {selected,distance,gain,elevations,start:areaStart,end:areaEnd};
+      }
+      function buildPaceSamples(selected) {
+        const chunks=[]; let current=[],cumulativeMeters=0,chartStart=null;
+        const finishChunk=()=>{if(current.length)chunks.push(current);current=[];};
+        for(let i=1;i<selected.length;i++) {
+          const a=selected[i-1],b=selected[i];
+          if(a.segmentIndex!==b.segmentIndex) { finishChunk(); continue; }
+          const intervals=segmentAreaIntervals(a,b);
+          if(!intervals.length) { finishChunk(); continue; }
+          const elapsedSeconds=a.time&&b.time?(b.time-a.time)/1000:null;
+          const canMeasurePace=elapsedSeconds!==null&&elapsedSeconds>0&&elapsedSeconds<=15;
+          if(!canMeasurePace) finishChunk();
+          for(const [from,to] of intervals) {
+            const p1=interpolatePoint(a,b,from),p2=interpolatePoint(a,b,to),meters=haversine(p1,p2);
+            cumulativeMeters+=meters;
+            const startTime=timeAtEdge(a,b,from),endTime=timeAtEdge(a,b,to);
+            if(!canMeasurePace||!startTime||!endTime) { finishChunk(); continue; }
+            const seconds=(endTime-startTime)/1000;
+            if(seconds<=0) { finishChunk(); continue; }
+            if(!chartStart) chartStart=startTime;
+            if(current.length&&Math.abs(startTime-current[current.length-1].endTime)>2500) finishChunk();
+            current.push({startTime,endTime,seconds,meters,point:p2,distanceMeters:cumulativeMeters,elapsedSeconds:(endTime-chartStart)/1000});
+            if(to<1-1e-9) finishChunk();
+          }
+        }
+        finishChunk();
+        const samples=[];
+        for(const chunk of chunks) {
+          let firstSample=true;
+          for(let i=0;i<chunk.length;i++) {
+            const end=chunk[i].endTime,start=new Date(end.getTime()-5000);let usedSeconds=0,usedMeters=0;
+            for(let j=i;j>=0;j--) {
+              const row=chunk[j],overlap=Math.max(0,Math.min(end,row.endTime)-Math.max(start,row.startTime));
+              if(overlap>0) { const fraction=overlap/(row.endTime-row.startTime);usedSeconds+=overlap/1000;usedMeters+=row.meters*fraction; }
+              if(row.startTime<=start) break;
+            }
+            if(usedSeconds>=2&&usedMeters>=0.5) { samples.push({time:end,pace:usedSeconds/usedMeters*1000,point:chunk[i].point,elapsedSeconds:chunk[i].elapsedSeconds,distanceMeters:chunk[i].distanceMeters,breakBefore:firstSample}); firstSample=false; }
+          }
+        }
+        return samples;
+      }
+      function renderPaceChart(selected) {
+        const svg=$('pace-chart'), empty=$('pace-empty');
+        $('pace-card').style.display='block';
+        if(paceMarker){map.removeLayer(paceMarker);paceMarker=null;}
+        paceSelected=selected; paceSamples=buildPaceSamples(selected); pacePinned=false;
+        if(paceSamples.length<2) { svg.style.display='none'; empty.style.display='grid'; $('time-scroll').style.display='none'; $('pace-time-readout').textContent='Not enough timed samples'; $('pace-value-readout').textContent='—'; $('pace-elapsed-readout').textContent='Elapsed —'; $('pace-distance-readout').textContent='Distance —'; $('pace-mode').textContent=''; $('zoom-in').disabled=true; $('zoom-out').disabled=true; $('zoom-reset').disabled=true; return; }
+        svg.style.display='block'; empty.style.display='none'; $('time-scroll').style.display='block';
+        paceFullStart=paceSamples[0].time.getTime(); paceFullEnd=paceSamples[paceSamples.length-1].time.getTime();
+        paceViewStart=paceFullStart; paceViewEnd=paceFullEnd;
+        $('pace-mode').textContent='Hover mode';
+        $('pace-time-readout').textContent='Hover over chart'; $('pace-value-readout').textContent='—';
+        drawPaceChart();
+      }
+      function drawPaceChart() {
+        const svg=$('pace-chart'),W=900,H=270,pad={l:68,r:22,t:16,b:42};
+        const minTime=paceViewStart,maxTime=paceViewEnd;
+        const paceCeiling=15*60,plottable=paceSamples.filter(p=>p.pace<=paceCeiling);
+        const fastest=plottable.length?Math.min(...plottable.map(p=>p.pace)):120;
+        const minPace=Math.max(0,fastest-Math.max(10,(paceCeiling-fastest)*.04)),maxPace=paceCeiling;
+        const plotW=W-pad.l-pad.r,plotH=H-pad.t-pad.b;
+        const xOf=t=>pad.l+(t-minTime)/(maxTime-minTime||1)*plotW;
+        const yOf=p=>pad.t+(p-minPace)/(maxPace-minPace||1)*plotH;
+        const paths=[]; let path='';
+        for(const sample of paceSamples) {
+          const sampleTime=sample.time.getTime();
+          if(sampleTime<minTime) continue;
+          if(sampleTime>maxTime) break;
+          if(sample.pace>paceCeiling) { if(path){paths.push(path);path='';} continue; }
+          const x=xOf(sampleTime),y=yOf(sample.pace);
+          if(sample.breakBefore&&path) { paths.push(path); path=''; }
+          path+=`${path?'L':'M'}${x.toFixed(1)},${y.toFixed(1)} `;
+        }
+        if(path) paths.push(path);
+        let markup='';
+        for(let i=0;i<=4;i++) {
+          const fraction=i/4, t=minTime+(maxTime-minTime)*fraction, x=pad.l+plotW*fraction;
+          markup+=`<line class="pace-grid" x1="${pad.l}" y1="${(pad.t+plotH*fraction).toFixed(1)}" x2="${W-pad.r}" y2="${(pad.t+plotH*fraction).toFixed(1)}"/>`;
+          const pace=minPace+(maxPace-minPace)*fraction;
+          markup+=`<text x="${pad.l-9}" y="${(pad.t+plotH*fraction+4).toFixed(1)}" text-anchor="end">${fmtPace(pace)}</text>`;
+          markup+=`<text x="${x.toFixed(1)}" y="${H-12}" text-anchor="${i===0?'start':i===4?'end':'middle'}">${fmtClock(new Date(t))}</text>`;
+        }
+        markup+=`<line class="pace-axis" x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+plotH}"/><line class="pace-axis" x1="${pad.l}" y1="${pad.t+plotH}" x2="${W-pad.r}" y2="${pad.t+plotH}"/><text x="16" y="${pad.t+plotH/2}" text-anchor="middle" transform="rotate(-90 16 ${pad.t+plotH/2})">Pace (mm:ss/km)</text><text x="${pad.l+plotW/2}" y="${H-1}" text-anchor="middle">Time of day</text>`;
+        markup+=paths.map(d=>`<path class="pace-line" d="${d.trim()}"/>`).join('');
+        markup+=`<circle class="pace-cursor" id="pace-cursor" cx="${pad.l}" cy="${pad.t}" r="5" visibility="hidden"/>`;
+        svg.innerHTML=markup;
+        const visibleSamples=paceSamples.filter(sample=>sample.time.getTime()>=minTime&&sample.time.getTime()<=maxTime);
+        const locate=event=>{
+          if(!visibleSamples.length)return;
+          const rect=svg.getBoundingClientRect(), px=(event.clientX-rect.left)/rect.width*W;
+          const t=minTime+Math.max(0,Math.min(1,(px-pad.l)/plotW))*(maxTime-minTime);
+          let lo=0,hi=visibleSamples.length-1;
+          while(lo<hi){const mid=(lo+hi)>>1;if(visibleSamples[mid].time.getTime()<t)lo=mid+1;else hi=mid;}
+          const choices=[visibleSamples[lo],visibleSamples[Math.max(0,lo-1)]], sample=choices.reduce((best,item)=>Math.abs(item.time-t)<Math.abs(best.time-t)?item:best);
+          const cursor=$('pace-cursor'); cursor.setAttribute('cx',xOf(sample.time.getTime()));cursor.setAttribute('cy',yOf(sample.pace));cursor.setAttribute('visibility','visible');
+          $('pace-time-readout').textContent=fmtClock(sample.time);$('pace-value-readout').textContent=`${fmtPace(sample.pace)} /km`;
+          $('pace-elapsed-readout').textContent=`Elapsed ${fmtElapsed(sample.elapsedSeconds*1000)}`;
+          $('pace-distance-readout').textContent=`Distance ${fmtDistance(sample.distanceMeters)}`;
+          if(map){if(!paceMarker)paceMarker=L.circleMarker([sample.point.lat,sample.point.lon],{radius:8,color:'#fff',weight:3,fillColor:'#d76c4a',fillOpacity:1}).addTo(map);else paceMarker.setLatLng([sample.point.lat,sample.point.lon]);paceMarker.bindTooltip(`${fmtClock(sample.time)} · ${fmtPace(sample.pace)} /km`,{direction:'top',offset:[0,-8]}).openTooltip();}
+        };
+        svg.onpointerdown=event=>{
+          if(event.pointerType==='mouse'&&event.button!==0)return;
+          event.preventDefault(); svg.setPointerCapture(event.pointerId); locate(event);
+          pacePinned=!pacePinned; $('pace-mode').textContent=pacePinned?'Pinned · click to resume':'Hover mode';
+        };
+        svg.onpointermove=event=>{if(!pacePinned)locate(event);};
+        $('zoom-in').disabled=paceViewEnd-paceViewStart<=Math.max(3000,(paceFullEnd-paceFullStart)/20);
+        $('zoom-out').disabled=paceViewEnd-paceViewStart>=paceFullEnd-paceFullStart-100;
+        $('zoom-reset').disabled=$('zoom-out').disabled;
+        updateTimeScroll();
+      }
+      function updateTimeScroll() {
+        if(!paceSamples.length||paceFullEnd<=paceFullStart)return;
+        const full=paceFullEnd-paceFullStart,span=paceViewEnd-paceViewStart;
+        const window=$('time-scroll-window');
+        window.style.left=`${Math.max(0,(paceViewStart-paceFullStart)/full*100)}%`;
+        window.style.width=`${Math.min(100,span/full*100)}%`;
+        const disabled=span>=full-100;
+        $('time-scroll').classList.toggle('disabled',disabled);
+        $('time-scroll').setAttribute('aria-valuenow',String(Math.round((paceViewStart-paceFullStart)/full*100)));
+      }
+      function zoomPace(factor) {
+        if(!paceSamples.length)return;
+        const fullSpan=paceFullEnd-paceFullStart,currentSpan=paceViewEnd-paceViewStart;
+        const minSpan=Math.max(3000,fullSpan/20),newSpan=Math.max(minSpan,Math.min(fullSpan,currentSpan*factor));
+        const center=(paceViewStart+paceViewEnd)/2;
+        paceViewStart=Math.max(paceFullStart,center-newSpan/2); paceViewEnd=Math.min(paceFullEnd,paceViewStart+newSpan);
+        if(paceViewEnd-paceViewStart<newSpan)paceViewStart=Math.max(paceFullStart,paceViewEnd-newSpan);
+        pacePinned=false; $('pace-mode').textContent='Hover mode'; $('pace-time-readout').textContent='Hover over chart'; $('pace-value-readout').textContent='—'; $('pace-elapsed-readout').textContent='Elapsed —'; $('pace-distance-readout').textContent='Distance —';
+        if(paceMarker){map.removeLayer(paceMarker);paceMarker=null;}
+        drawPaceChart();
+      }
+      function renderTrim(fit=false) {
+        if(!activity) return;
+        const points=activity.points, start=points[trimStart], end=points[trimEnd];
+        const allLines=activity.segments.map(seg=>L.polyline(seg.map(p=>[p.lat,p.lon]),{color:'#bdc8c0',weight:4,opacity:.75,lineCap:'round',lineJoin:'round'}));
+        const keptLines=activity.segments.map(seg=>{
+          const kept=seg.filter(p=>p.index>=trimStart&&p.index<=trimEnd);
+          return kept.length>1?L.polyline(kept.map(p=>[p.lat,p.lon]),{color:'#18845a',weight:5,opacity:.95,lineCap:'round',lineJoin:'round'}):null;
+        }).filter(Boolean);
+        const countedLines=[];
+        for(const seg of activity.segments) for(let i=1;i<seg.length;i++) {
+          const a=seg[i-1],b=seg[i];
+          if(a.index<trimStart||b.index>trimEnd) continue;
+          for(const [from,to] of segmentAreaIntervals(a,b)) {
+            const p1=interpolatePoint(a,b,from),p2=interpolatePoint(a,b,to);
+            if(haversine(p1,p2)>0.1) countedLines.push(L.polyline([[p1.lat,p1.lon],[p2.lat,p2.lon]],{color:'#167ba0',weight:7,opacity:1,lineCap:'round'}));
+          }
+        }
+        if(routeLayer) map.removeLayer(routeLayer);
+        if(markers) map.removeLayer(markers);
+        routeLayer=L.featureGroup([...allLines,...keptLines,...countedLines]).addTo(map);
+        const startIcon=L.divIcon({className:'',html:'<span style="display:block;width:15px;height:15px;border:3px solid white;border-radius:50%;background:#176b4b;box-shadow:0 1px 5px #0005"></span>',iconSize:[15,15],iconAnchor:[7.5,7.5]});
+        const endIcon=L.divIcon({className:'',html:'<span style="display:block;width:15px;height:15px;border:3px solid white;border-radius:50%;background:#d76c4a;box-shadow:0 1px 5px #0005"></span>',iconSize:[15,15],iconAnchor:[7.5,7.5]});
+        markers=L.layerGroup([L.marker([start.lat,start.lon],{icon:startIcon}).bindPopup('New start'),L.marker([end.lat,end.lon],{icon:endIcon}).bindPopup('New finish')]).addTo(map);
+        if(fit) map.fitBounds(L.featureGroup([routeLayer,areaLayer]).getBounds(),{padding:[35,35],maxZoom:16});
+        $('trim-start').max=String(Math.max(0,trimEnd-1)); $('trim-end').min=String(Math.min(points.length-1,trimStart+1));
+        $('trim-start').value=String(trimStart); $('trim-end').value=String(trimEnd);
+        const stats=selectedStats();
+        $('trim-start-label').textContent=stats.start?fmtStart(stats.start):`${Math.round(trimStart/(points.length-1)*100)}% · point ${compact(trimStart+1)}`;
+        $('trim-end-label').textContent=stats.end?fmtStart(stats.end):`${Math.round(trimEnd/(points.length-1)*100)}% · point ${compact(trimEnd+1)}`;
+        $('start-time').textContent=stats.start?fmtStart(stats.start):'Not recorded';
+        $('duration').textContent=stats.start&&stats.end?fmtDuration(stats.end-stats.start):'Not recorded';
+        $('distance').textContent=stats.distance>0.1?(stats.distance>=1000?`${(stats.distance/1000).toFixed(2)} km`:`${Math.round(stats.distance)} m`):'0 m';
+        $('points').textContent=compact(stats.selected.length);
+        $('elevation-gain').textContent=stats.elevations.length?`${Math.round(stats.gain)} m`:'Not recorded';
+        $('elevation-range').textContent=stats.elevations.length?`${Math.round(Math.min(...stats.elevations))}–${Math.round(Math.max(...stats.elevations))} m`:'Not recorded';
+        $('point-hint').textContent=`${compact(stats.selected.length)} of ${compact(points.length)} points kept · blue route is counted`;
+        $('distance').title=stats.distance>0.1?'Distance travelled inside the shaded area':'No track distance inside the shaded area';
+        renderPaceChart(stats.selected);
+      }
+      function loadFile(file) {
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.gpx') && file.type && !/xml|gpx/i.test(file.type)) { setStatus('Please choose a .gpx file.',true); return; }
+        const reader = new FileReader();
+        reader.onload = () => { try { const data=parseGpx(String(reader.result)); showActivity(data); $('file-name').textContent=file.name; $('file-name').style.display='block'; const hasAreaTrack=selectedStats().distance>0.1; setStatus(hasAreaTrack?'GPX loaded. Distance is counted only inside the shaded area.':'No track distance was found inside the shaded area.',!hasAreaTrack); } catch(err) { setStatus(err.message || 'Could not read this GPX file.',true); } };
+        reader.onerror = () => setStatus('The file could not be read by this browser.',true);
+        setStatus('Reading GPX file…'); reader.readAsText(file);
+      }
+      $('choose-file').addEventListener('click',()=>input.click());
+      $('trim-start').addEventListener('input',e=>{ trimStart=Math.min(Number(e.target.value),trimEnd-1); renderTrim(); });
+      $('trim-end').addEventListener('input',e=>{ trimEnd=Math.max(Number(e.target.value),trimStart+1); renderTrim(); });
+      $('trim-reset').addEventListener('click',()=>{if(!activity)return;trimStart=0;trimEnd=activity.points.length-1;renderTrim();});
+      $('zoom-in').addEventListener('click',()=>zoomPace(1/1.6));
+      $('zoom-out').addEventListener('click',()=>zoomPace(1.6));
+      $('zoom-reset').addEventListener('click',()=>{if(!paceSamples.length)return;paceViewStart=paceFullStart;paceViewEnd=paceFullEnd;pacePinned=false;$('pace-mode').textContent='Hover mode';$('pace-time-readout').textContent='Hover over chart';$('pace-value-readout').textContent='—';$('pace-elapsed-readout').textContent='Elapsed —';$('pace-distance-readout').textContent='Distance —';if(paceMarker){map.removeLayer(paceMarker);paceMarker=null;}drawPaceChart();});
+      let scrollDrag=null;
+      $('time-scroll').addEventListener('pointerdown',event=>{
+        if(!paceSamples.length||paceViewEnd-paceViewStart>=paceFullEnd-paceFullStart-100)return;
+        event.preventDefault(); const bar=$('time-scroll'),rect=bar.getBoundingClientRect(),span=paceViewEnd-paceViewStart;
+        if(event.target!==$('time-scroll-window')) {
+          const center=paceFullStart+Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width))*(paceFullEnd-paceFullStart);
+          paceViewStart=Math.max(paceFullStart,Math.min(paceFullEnd-span,center-span/2)); paceViewEnd=paceViewStart+span;
+        }
+        scrollDrag={x:event.clientX,start:paceViewStart,span}; bar.setPointerCapture(event.pointerId);
+        pacePinned=false; $('pace-mode').textContent='Hover mode'; $('pace-time-readout').textContent='Scroll timeline to browse'; $('pace-value-readout').textContent='—'; $('pace-elapsed-readout').textContent='Elapsed —'; $('pace-distance-readout').textContent='Distance —'; if(paceMarker){map.removeLayer(paceMarker);paceMarker=null;} drawPaceChart();
+      });
+      $('time-scroll').addEventListener('pointermove',event=>{
+        if(!scrollDrag)return;
+        const rect=$('time-scroll').getBoundingClientRect(),delta=(event.clientX-scrollDrag.x)/rect.width*(paceFullEnd-paceFullStart);
+        paceViewStart=Math.max(paceFullStart,Math.min(paceFullEnd-scrollDrag.span,scrollDrag.start+delta)); paceViewEnd=paceViewStart+scrollDrag.span; drawPaceChart();
+      });
+      $('time-scroll').addEventListener('pointerup',()=>{scrollDrag=null;});
+      $('time-scroll').addEventListener('pointercancel',()=>{scrollDrag=null;});
+      $('time-scroll').addEventListener('keydown',event=>{
+        if(!paceSamples.length)return;
+        const shift=(paceViewEnd-paceViewStart)*.15;
+        if(event.key==='ArrowLeft'){const span=paceViewEnd-paceViewStart;paceViewStart=Math.max(paceFullStart,paceViewStart-shift);paceViewEnd=paceViewStart+span;event.preventDefault();drawPaceChart();}
+        else if(event.key==='ArrowRight'){const span=paceViewEnd-paceViewStart;paceViewStart=Math.min(paceFullEnd-span,paceViewStart+shift);paceViewEnd=paceViewStart+span;event.preventDefault();drawPaceChart();}
+        else if(event.key==='Home'){const span=paceViewEnd-paceViewStart;paceViewStart=paceFullStart;paceViewEnd=paceViewStart+span;event.preventDefault();drawPaceChart();}
+        else if(event.key==='End'){const span=paceViewEnd-paceViewStart;paceViewEnd=paceFullEnd;paceViewStart=paceViewEnd-span;event.preventDefault();drawPaceChart();}
+      });
+      input.addEventListener('change',()=>{ loadFile(input.files[0]); input.value=''; });
+      for (const event of ['dragenter','dragover']) zone.addEventListener(event,e=>{e.preventDefault();zone.classList.add('drag');});
+      for (const event of ['dragleave','drop']) zone.addEventListener(event,e=>{e.preventDefault();zone.classList.remove('drag');});
+      zone.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+    })();
+  </script>
+</body>
+</html>
