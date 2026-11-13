@@ -42,6 +42,7 @@ index_v12: Centralizes record storage, validates backups and events, and safely 
     }
 
     header {
+      position: relative;
       background: #0b1f4d;
       color: white;
       padding: 28px 24px;
@@ -55,6 +56,27 @@ index_v12: Centralizes record storage, validates backups and events, and safely 
     }
 
     header p { margin: 0; line-height: 1.5; }
+
+    .trajectory-shortcut {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      color: inherit;
+      font-size: 20px;
+      line-height: 1;
+      text-decoration: none;
+    }
+
+    .trajectory-shortcut:hover { opacity: .78; }
+    header .trajectory-shortcut {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+    }
 
     .stats {
       display: grid;
@@ -908,6 +930,11 @@ body {
   margin: 0;
   white-space: nowrap;
 }
+.directory-toolbar .trajectory-shortcut {
+  flex: 0 0 36px;
+  margin-left: auto;
+  color: #20352c;
+}
 #track-search-section { margin-bottom: 12px; }
 #track-map-view {
   display: none;
@@ -1227,6 +1254,7 @@ body {
     <header>
       <h1>My Track Passport</h1>
       <p>Discover tracks. Collect visits. Explore more.</p>
+      <a class="trajectory-shortcut" href="trajectory.html" aria-label="Open GPX route viewer" title="Open GPX route viewer">↗</a>
     </header>
 
 
@@ -1289,6 +1317,7 @@ body {
     <button type="button" id="map-view-button" class="active" onclick="setDirectoryView('map')">Map</button>
     <button type="button" id="list-view-button" onclick="setDirectoryView('list')">List</button>
   </div>
+  <a class="trajectory-shortcut" href="trajectory.html" aria-label="Open GPX route viewer" title="Open GPX route viewer">↗</a>
   <button
     type="button"
     id="open-filters-button"
