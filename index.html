@@ -13,6 +13,7 @@ index_v9: Moves track-card markup and data to tracks.html and loads it dynamical
 index_v10: Adds user location, nearby-track search and distance sorting, including custom map locations.
 index_v11: Refines visit statistics and location handling.
 index_v12: Centralizes record storage, validates backups and events, and safely handles missing times and directory-load failures.
+index_v13: Adds dedicated track-card pages, category-based competition events including Race Walking and 300m, and a trajectory shortcut.
 -->
 
 <!DOCTYPE html>
@@ -1551,11 +1552,16 @@ body {
       return { id: makeId(), trackId, type, date: null, createdAt: new Date().toISOString(), ...fields };
     }
 
+    const raceWalkingEventDistances = Object.freeze({
+      "2000mW":2000,"3000mW":3000,"5000mW":5000,"10000mW":10000,
+      "15000mW":15000,"20000mW":20000,"30000mW":30000,"35000mW":35000,"50000mW":50000
+    });
+
     function validateCompetitionEvent(event, label) {
       if (!event || typeof event !== "object" || Array.isArray(event)) throw new Error(`${label} must be a valid object.`);
 
       const trackEventDistances = {
-        "50m":50,"60m":60,"100m":100,"200m":200,"400m":400,"800m":800,"1000m":1000,
+        "50m":50,"60m":60,"100m":100,"200m":200,"300m":300,"400m":400,"800m":800,"1000m":1000,
         "1500m":1500,"mile":1609,"2000m":2000,"3000m":3000,"two miles":3219,
         "5000m":5000,"10000m":10000,"60mH":60,"100mH":100,"110mH":110,
         "300mH":300,"400mH":400,"2000m SC":2000,"3000m SC":3000,
@@ -1563,14 +1569,26 @@ body {
       };
       const fieldEvents = ["High jump","Long jump","Triple jump","Pole vault","Shot put","Javelin","Hammer","Discus","Other"];
       const trackEvents = [...Object.keys(trackEventDistances), "1 hour run", "Other"];
+      const categoryEvents = {
+        sprints:["50m","60m","100m","200m","300m","400m","Other"],
+        hurdles:["60mH","100mH","110mH","300mH","400mH","Other"],
+        distances:["800m","1000m","1500m","mile","2000m","3000m","two miles","5000m","10000m","2000m SC","3000m SC","1 hour run","Other"],
+        relay:["4 by 100m","4 by 200m","4 by 400m","Other"],
+        raceWalking:[...Object.keys(raceWalkingEventDistances),"Other"],
+        jumping:["High jump","Long jump","Triple jump","Pole vault","Other"],
+        throwing:["Shot put","Javelin","Hammer","Discus","Other"]
+      };
       if (typeof event.eventName !== "string" || !event.eventName.trim()) throw new Error(`${label} is missing a valid eventName.`);
-      if (!["track", "field"].includes(event.eventCategory)) throw new Error(`${label} has an invalid eventCategory.`);
-      if (typeof event.selectedEvent !== "string" || !(event.eventCategory === "track" ? trackEvents : fieldEvents).includes(event.selectedEvent)) throw new Error(`${label} has an invalid selectedEvent for its eventCategory.`);
+      const legacyCategory = ["track","field"].includes(event.eventCategory);
+      const allowedEvents = legacyCategory ? (event.eventCategory === "track" ? trackEvents : fieldEvents) : categoryEvents[event.eventCategory];
+      if (!allowedEvents) throw new Error(`${label} has an invalid eventCategory.`);
+      if (typeof event.selectedEvent !== "string" || !allowedEvents.includes(event.selectedEvent)) throw new Error(`${label} has an invalid selectedEvent for its eventCategory.`);
       if (typeof event.result !== "string" || !event.result.trim()) throw new Error(`${label} is missing a valid result.`);
       if (event.startTime != null && event.startTime !== "" && (typeof event.startTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.startTime))) throw new Error(`${label} has an invalid startTime.`);
       if (typeof event.distanceMetres !== "number" || !Number.isFinite(event.distanceMetres) || !Number.isInteger(event.distanceMetres) || event.distanceMetres < 0) throw new Error(`${label} has an invalid distanceMetres.`);
 
-      if (event.eventCategory === "field") {
+      const isField = ["field","jumping","throwing"].includes(event.eventCategory);
+      if (isField) {
         const resultMetres = Number(event.result);
         if (!Number.isFinite(resultMetres) || resultMetres < 0) throw new Error(`${label} has an invalid field result.`);
         if (event.distanceMetres !== 0) throw new Error(`${label} has an invalid distanceMetres for a field event.`);
@@ -1579,11 +1597,13 @@ body {
         if (!Number.isFinite(resultDistance) || !Number.isInteger(resultDistance) || resultDistance <= 0 || event.distanceMetres !== resultDistance) throw new Error(`${label} has an invalid 1 hour run distance result.`);
       } else if (Object.prototype.hasOwnProperty.call(trackEventDistances, event.selectedEvent)) {
         if (event.distanceMetres !== trackEventDistances[event.selectedEvent]) throw new Error(`${label} has an invalid distanceMetres for ${event.selectedEvent}.`);
+      } else if (Object.prototype.hasOwnProperty.call(raceWalkingEventDistances, event.selectedEvent)) {
+        if (event.distanceMetres !== raceWalkingEventDistances[event.selectedEvent]) throw new Error(`${label} has an invalid distanceMetres for ${event.selectedEvent}.`);
       }
 
       const hurdleEvents = ["60mH","100mH","110mH","300mH","400mH","2000m SC","3000m SC"];
       const savedHurdle = event.hurdleHeight;
-      if (event.eventCategory === "track" && hurdleEvents.includes(event.selectedEvent) && (typeof savedHurdle !== "string" || !savedHurdle.trim())) throw new Error(`${label} is missing a valid hurdleHeight.`);
+      if ((legacyCategory ? event.eventCategory === "track" : ["hurdles","distances"].includes(event.eventCategory)) && hurdleEvents.includes(event.selectedEvent) && (typeof savedHurdle !== "string" || !savedHurdle.trim())) throw new Error(`${label} is missing a valid hurdleHeight.`);
       if (savedHurdle != null) {
         if (typeof savedHurdle !== "string" || !savedHurdle.trim()) throw new Error(`${label} has an invalid hurdleHeight.`);
         const presetHeights = event.selectedEvent.endsWith(" SC")
@@ -2175,13 +2195,24 @@ if (recordToEdit) {
 form.appendChild(actions);
 
           const trackEvents = [
-            ["50m",50],["60m",60],["100m",100],["200m",200],["400m",400],["800m",800],["1000m",1000],
+            ["50m",50],["60m",60],["100m",100],["200m",200],["300m",300],["400m",400],["800m",800],["1000m",1000],
             ["1500m",1500],["mile",1609.344],["2000m",2000],["3000m",3000],["two miles",3218.688],
             ["5000m",5000],["10000m",10000],["60mH",60],["100mH",100],["110mH",110],
             ["300mH",300],["400mH",400],["2000m SC",2000],["3000m SC",3000],
             ["4 by 100m",100],["4 by 200m",200],["4 by 400m",400],["1 hour run",null],["Other",null]
           ];
           const fieldEvents = ["High jump","Long jump","Triple jump","Pole vault","Shot put","Javelin","Hammer","Discus","Other"];
+          const eventGroups = {
+            sprints:{label:"Sprints",events:trackEvents.filter(([name])=>["50m","60m","100m","200m","300m","400m","Other"].includes(name))},
+            hurdles:{label:"Hurdles",events:trackEvents.filter(([name])=>["60mH","100mH","110mH","300mH","400mH","Other"].includes(name))},
+            distances:{label:"Distances",events:trackEvents.filter(([name])=>["800m","1000m","1500m","mile","2000m","3000m","two miles","5000m","10000m","2000m SC","3000m SC","1 hour run","Other"].includes(name))},
+            relay:{label:"Relay",events:trackEvents.filter(([name])=>["4 by 100m","4 by 200m","4 by 400m","Other"].includes(name))},
+            raceWalking:{label:"Race Walking",events:[...Object.entries(raceWalkingEventDistances),["Other",null]]},
+            jumping:{label:"Jumping",events:fieldEvents.filter(name=>["High jump","Long jump","Triple jump","Pole vault","Other"].includes(name)).map(name=>[name,0])},
+            throwing:{label:"Throwing",events:fieldEvents.filter(name=>["Shot put","Javelin","Hammer","Discus","Other"].includes(name)).map(name=>[name,0])}
+          };
+          const categoryItems = Object.entries(eventGroups).map(([value,group])=>({value,label:group.label}));
+          const walkExamples = {"2000mW":"e.g. 20:00.00","3000mW":"e.g. 26:17.45","5000mW":"e.g. 44:13.72","10000mW":"e.g. 1:30:56.21","15000mW":"e.g. 2:18:08.29","20000mW":"e.g. 3:06:48.78","30000mW":"e.g. 5:12:55.36","35000mW":"e.g. 6:13:16.43","50000mW":"e.g. 10:08:33.84"};
           const hurdleHeights = ["0.600 m","0.686 m","0.762 m","0.838 m","0.914 m","0.991 m","1.000 m","1.067 m"];
           const implementWeights = {
             "Shot put":["1 kg","2 kg","2.72 kg","3 kg","3.25 kg","3.63 kg","4 kg","5 kg","6 kg","7.26 kg"],
@@ -2269,15 +2300,14 @@ form.appendChild(actions);
 
           function addEventRow() {
             const row = document.createElement("div"); row.className = "event-row";
-            const category = addField(row, "Event type", "select", "competition-event-category", {required:true,items:[{value:"track",label:"Track"},{value:"field",label:"Field"}]});
+            const category = addField(row, "Event type", "select", "competition-event-category", {required:true,items:categoryItems});
             const eventSelect = addField(row, "Event", "select", "competition-event-select", {required:true,items:trackEvents.map(([name])=>({value:name,label:name}))});
             const eventStartTime = addField(row, "Event start time", "time", "competition-event-start-time", { required: false });
             
             const dynamic = document.createElement("div"); dynamic.className = "event-dynamic-fields"; row.appendChild(dynamic);
             const resultContainer = document.createElement("div"); resultContainer.className = "competition-result-container"; row.appendChild(resultContainer);
             function renderEventOptions() {
-              const isField = category.value === "field";
-              const options = isField ? fieldEvents.map(name=>({value:name,label:name})) : trackEvents.map(([name])=>({value:name,label:name}));
+              const options = eventGroups[category.value].events.map(([name])=>({value:name,label:name}));
               eventSelect.replaceChildren();
               options.forEach(item=>{const option=document.createElement("option");option.value=item.value;option.textContent=item.label;eventSelect.appendChild(option);});
               renderDynamicFields();
@@ -2287,7 +2317,8 @@ form.appendChild(actions);
               resultContainer.replaceChildren();
               const name = eventSelect.value;
           
-            if (category.value === "field") {
+            const isFieldCategory = ["jumping","throwing"].includes(category.value);
+            if (isFieldCategory) {
             const fieldExamples = {
               "High jump": "e.g. 1.28",
               "Long jump": "e.g. 4.01",
@@ -2318,18 +2349,19 @@ form.appendChild(actions);
               } else {
                 const timeExamples = {
                   "50m": "e.g. 9.09", "60m": "e.g. 10.57",
-                  "100m": "e.g. 16.79", "200m": "e.g. 35.05", "400m": "e.g. 1:18.01",
+                  "100m": "e.g. 16.79", "200m": "e.g. 35.05", "300m": "e.g. 56.46", "400m": "e.g. 1:18.01",
                   "800m": "e.g. 2:59.75", "1000m": "e.g. 3:54.51", "1500m": "e.g. 6:20.04", "mile": "e.g. 6:49.66", "2000m": "e.g. 8:41.22",
                   "3000m": "e.g. 13:48.92", "two miles": "e.g. 14:52.87", "5000m": "e.g. 23:41.02", "10000m": "e.g. 51:46.31",
                   "60mH": "e.g. 14.39", "100mH": "e.g. 29.49", "110mH": "e.g. 25.43", "300mH": "e.g. 1:07.02", "400mH": "e.g. 1:34.14",
                   "2000m SC": "e.g. 10:50.11", "3000m SC": "e.g. 16:44.77",
                   "4 by 100m": "e.g. 1:08.60", "4 by 200m": "e.g. 2:22.16", "4 by 400m": "e.g. 5:29.55",
-                  "Other": "e.g. 12.45 or 4:38.89"
+                  "Other": "e.g. 12.45 or 4:38.89",
+                  ...walkExamples
                 };
                 addField(resultContainer, "Result / time (enter in your usual format)", "text", "competition-result-time", {required:true,placeholder:timeExamples[name] || "Enter result"});
               }
-              if (category.value === "track") {
-                const eventData = trackEvents.find(item=>item[0]===name);
+              if (!isFieldCategory) {
+                const eventData = eventGroups[category.value].events.find(item=>item[0]===name);
                 if (["60mH","100mH","110mH","300mH","400mH","2000m SC","3000m SC"].includes(name)) {
                   const isSteeplechase = name.endsWith(" SC");
                   const heightOptions = isSteeplechase ? ["0.762 m","0.838 m","0.914 m"] : hurdleHeights;
@@ -2348,12 +2380,12 @@ form.appendChild(actions);
                   addField(dynamic, "Custom event name", "text", "competition-custom-name", {required:true,placeholder:"Enter event name"});
                   addField(dynamic, "Running distance to count (metres)", "number", "competition-manual-distance-metres", {required:true,min:"0",step:"1",value:"0"});
                 } else {
-                  const note = document.createElement("p"); note.className="small-label"; note.textContent = `Running distance counted automatically: ${eventData ? eventData[1] : 0} m${name.startsWith("4 by ") ? " (one leg only)" : ""}.`; dynamic.appendChild(note);
+                  const note = document.createElement("p"); note.className="small-label"; note.textContent = `Competition distance counted automatically: ${eventData ? eventData[1] : 0} m${name.startsWith("4 by ") ? " (one leg only)" : ""}.`; dynamic.appendChild(note);
                 }
               } else if (name === "Other") {
                 addField(dynamic, "Custom field event name", "text", "competition-custom-name", {required:true,placeholder:"Enter event name"});
               }
-              if (category.value === "field" && implementWeights[name]) {
+              if (category.value === "throwing" && implementWeights[name]) {
                 addField(dynamic, "Implement weight", "select", "competition-implement-weight", {required:true,items:implementWeights[name].map(value=>({value,label:value}))});
               }
             }
@@ -2435,7 +2467,17 @@ if (eventStartTimeInput) {
 }
 
               const category = row.querySelector(".competition-event-category");
-              category.value = saved.eventCategory || "track";
+              let savedCategory = saved.eventCategory || "track";
+              if (savedCategory === "track") {
+                const oldEvent = saved.selectedEvent || (saved.eventName || "").split(" (")[0];
+                savedCategory = ["60mH","100mH","110mH","300mH","400mH"].includes(oldEvent) ? "hurdles"
+                  : oldEvent.startsWith("4 by ") ? "relay"
+                  : ["50m","60m","100m","200m","300m","400m"].includes(oldEvent) ? "sprints" : "distances";
+              } else if (savedCategory === "field") {
+                const oldEvent = saved.selectedEvent || (saved.eventName || "").split(" (")[0];
+                savedCategory = ["High jump","Long jump","Triple jump","Pole vault"].includes(oldEvent) ? "jumping" : "throwing";
+              }
+              category.value = savedCategory;
               category.dispatchEvent(new Event("change"));
               const eventSelect = row.querySelector(".competition-event-select");
               let selected = saved.selectedEvent;
@@ -2543,8 +2585,8 @@ if (eventStartTimeInput) {
             const baseName = selectedName === "Other" ? customName : selectedName;
             let distanceMetres = 0;
             let displayName = baseName;
-            if (category === "track") {
-              const eventData = trackEvents.find(item => item[0] === selectedName);
+            if (!["jumping","throwing"].includes(category)) {
+              const eventData = eventGroups[category].events.find(item => item[0] === selectedName);
               if (selectedName === "1 hour run") {
                 distanceMetres = Math.round(Number(result || 0));
                 displayName = "1 hour run";
@@ -2579,8 +2621,8 @@ if (eventStartTimeInput) {
             if (!item.eventName || !item.result) return true;
             if (item.selectedEvent === "1 hour run" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres <= 0)) return true;
             if (item.selectedEvent === "Other" && !row.querySelector(".competition-custom-name")?.value.trim()) return true;
-            if (item.selectedEvent === "Other" && item.eventCategory === "track" && (!Number.isFinite(item.distanceMetres) || item.distanceMetres < 0)) return true;
-            if (item.eventCategory === "field" && ["Shot put","Javelin","Hammer","Discus"].includes(item.selectedEvent) && !item.implementWeight) return true;
+            if (item.selectedEvent === "Other" && !["jumping","throwing"].includes(item.eventCategory) && (!Number.isFinite(item.distanceMetres) || item.distanceMetres < 0)) return true;
+            if (item.eventCategory === "throwing" && ["Shot put","Javelin","Hammer","Discus"].includes(item.selectedEvent) && !item.implementWeight) return true;
             const hurdleSelect = row.querySelector(".competition-hurdle-height");
             if (hurdleSelect?.value === "Custom") {
               const customHeight = Number(row.querySelector(".competition-hurdle-height-custom")?.value);
