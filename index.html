@@ -1,5 +1,4 @@
 <!--
-My Track Passport v12 — Stability and Data Foundation
 index_v0: Original track directory with visit check-ins and running-distance logs.
 index_v1: Combines check-ins and running logs into unified visit records and migrates legacy data.
 index_v2: Adds training, competition and spectating records, plus visit history and summaries.
@@ -135,6 +134,12 @@ index_v13: Adds dedicated track-card pages, category-based competition events in
 
     .track-stats strong {
       color: #243b2d;
+    }
+
+    .track-stats-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
     }
 
     .track-info span { display: block; }
@@ -1847,6 +1852,8 @@ function calculateStatistics(records) {
   return { trainingDistance, competitionDistance, totalDistance };
 }
 
+const trackStatsAddVisitButtons = new WeakSet();
+
 function updateTrackCard(card) {
   const trackId = card.dataset.trackId;
   const status = card.querySelector(".status");
@@ -1924,7 +1931,7 @@ if (details) {
 }
 
   // Display statistics
-  stats.textContent =
+  const statsText =
   `Visit statistics\n` +
   `Total visits: ${visits.length}\n` +
   `Training: ${trainingCount} | ` +
@@ -1936,6 +1943,43 @@ if (details) {
   `Competition: ${formatDistance(competitionDistance)}\n\n` +
   `Training duration\n` +
   `Total: ${formatDuration(trainingDuration)}`;
+
+  let statsSummary = stats.querySelector(".track-stats-summary");
+  if (!statsSummary) {
+    stats.replaceChildren();
+    statsSummary = document.createElement("div");
+    statsSummary.className = "track-stats-summary";
+    stats.appendChild(statsSummary);
+  }
+  statsSummary.textContent = statsText;
+
+  let statsActions = stats.querySelector(".track-stats-actions");
+  if (!statsActions) {
+    statsActions = document.createElement("div");
+    statsActions.className = "track-stats-actions";
+    stats.appendChild(statsActions);
+  }
+
+  let addVisitButton = stats.querySelector(".track-stats-add-visit");
+  if (!addVisitButton) {
+    addVisitButton = document.createElement("button");
+    addVisitButton.type = "button";
+    addVisitButton.className = "secondary track-stats-add-visit";
+    addVisitButton.textContent = "Add visit";
+    statsActions.appendChild(addVisitButton);
+  }
+  if (!trackStatsAddVisitButtons.has(addVisitButton)) {
+    addVisitButton.addEventListener("click", () => {
+      const activeCard = document.querySelector("#track-detail-content > .track-card");
+      if (activeCard === card) {
+        openTrackDetailSubpage("visit", "records");
+      } else {
+        const visitToggle = card.querySelector(".track-visit-toggle");
+        if (visitToggle) openVisitForm(visitToggle);
+      }
+    });
+    trackStatsAddVisitButtons.add(addVisitButton);
+  }
 }
 
 
@@ -3119,6 +3163,7 @@ function closeTrackDetailSubpage() {
   const visitButton = card.querySelector(".track-visit-toggle");
   const historyButton = card.querySelector(".track-history-toggle");
   const returnToDirectory = subpage?.dataset.returnTarget === "directory";
+  const returnToRecords = subpage?.dataset.mode === "visit" && subpage?.dataset.returnTarget === "records";
 
   if (formContainer) {
     formContainer.replaceChildren();
@@ -3136,6 +3181,28 @@ function closeTrackDetailSubpage() {
 
   if (returnToDirectory) {
     closeTrackDetailPage();
+    return;
+  }
+
+  if (returnToRecords) {
+    if (home) home.style.display = "none";
+    if (subpage) {
+      subpage.style.display = "block";
+      subpage.dataset.mode = "records";
+      subpage.dataset.returnTarget = "information";
+    }
+    if (details) details.style.display = "block";
+    if (recordsPanel) recordsPanel.style.display = "block";
+    if (stats) stats.style.display = "block";
+    if (historyButton) historyButton.textContent = "View records";
+    const navButton = document.querySelector("#track-detail-page .track-detail-back");
+    if (navButton) {
+      navButton.setAttribute("aria-label", "Back to track information");
+      navButton.setAttribute("onclick", "closeTrackDetailSubpage()");
+    }
+    document.querySelector("#track-detail-page .track-detail-nav h2").textContent = "Visit records";
+    renderTrackHistory(card);
+    window.scrollTo(0, 0);
     return;
   }
 
