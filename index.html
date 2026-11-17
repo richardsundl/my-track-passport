@@ -1373,8 +1373,6 @@ body {
 </div>
 
 <div id="track-list-view">
-
-   <!-- Track cards will be loaded from tracks.html -->
 </div>
 
 <section id="track-detail-page" aria-label="Track details" aria-live="polite">
@@ -1606,7 +1604,7 @@ body {
             "two miles": { distanceMetres: 3219, resultType: "time", resultPlaceholder: "e.g. 14:52.87" },
             "5000m": { distanceMetres: 5000, resultType: "time", resultPlaceholder: "e.g. 23:41.02" },
             "10000m": { distanceMetres: 10000, resultType: "time", resultPlaceholder: "e.g. 51:46.31" },
-            "1 hour run": { distanceMetres: null, resultType: "distance", distanceFromResult: true, resultPlaceholder: "e.g. 15200" },
+            "1 hour run": { distanceMetres: null, resultType: "distance", distanceFromResult: true, resultPlaceholder: "e.g. 12000" },
             "2000m SC": { distanceMetres: 2000, resultType: "time", hurdleType: "steeplechase", resultPlaceholder: "e.g. 10:50.11" },
             "3000m SC": { distanceMetres: 3000, resultType: "time", hurdleType: "steeplechase", resultPlaceholder: "e.g. 16:44.77" }
           }},
@@ -3638,44 +3636,21 @@ function locateUser() {
   );
 }
 
-function loadTrackCardData() {
+let trackData = [];
+
+function loadTrackCardData(tracks = trackData) {
 
   // Clear existing data
   Object.keys(trackNameById).forEach(id => delete trackNameById[id]);
   Object.keys(trackMapLocations).forEach(id => delete trackMapLocations[id]);
 
-  // Read data from all loaded track cards
-  document.querySelectorAll("#track-list-view > .track-card[data-track-id]").forEach(card => {
-
-    const trackId = card.dataset.trackId;
-
-    // Get track name
-    const heading = card.querySelector("h3");
-    if (heading) {
-      trackNameById[trackId] = heading.textContent.trim();
+  tracks.forEach(track => {
+    trackNameById[track.id] = track.name;
+    const latitude = track.location?.latitude;
+    const longitude = track.location?.longitude;
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      trackMapLocations[track.id] = { lat: latitude, lng: longitude };
     }
-
-    // Get coordinates
-    const latValue = card.dataset.lat;
-    const lngValue = card.dataset.lng;
-
-    const lat = Number(latValue);
-    const lng = Number(lngValue);
-
-    if (
-      latValue !== undefined &&
-      lngValue !== undefined &&
-      latValue.trim() !== "" &&
-      lngValue.trim() !== "" &&
-      Number.isFinite(lat) &&
-      Number.isFinite(lng)
-    ) {
-      trackMapLocations[trackId] = {
-        lat: lat,
-        lng: lng
-      };
-    }
-
   });
 
   console.log("Track card data loaded:", trackMapLocations);
@@ -4447,27 +4422,154 @@ document.addEventListener("touchend", event => {
     }
 
     
- async function loadTrackCards() {
-  try {
-    const response = await fetch("tracks.html");
+function escapeTrackHtml(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[character]);
+}
 
-    if (!response.ok) {
-      throw new Error("Failed to load tracks.html");
+function validateTrackData(data) {
+  if (!data || !Array.isArray(data.tracks)) {
+    throw new Error("Track data must contain a tracks array.");
+  }
+  const ids = new Set();
+  const requireString = (trackId, fieldPath, value) => {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(`Track ${trackId}, field ${fieldPath}: must be a non-empty string.`);
     }
+  };
+  const validateOptionalArray = (track, field, validateItem) => {
+    if (!Object.prototype.hasOwnProperty.call(track, field)) return;
+    if (!Array.isArray(track[field])) {
+      throw new Error(`Track ${track.id}, field ${field}: must be an array when present.`);
+    }
+    track[field].forEach((item, index) => {
+      const fieldPath = `${field}[${index}]`;
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        throw new Error(`Track ${track.id}, field ${fieldPath}: must be an object.`);
+      }
+      validateItem(track.id, fieldPath, item);
+    });
+  };
 
-    const trackCardsHTML = await response.text();
+  data.tracks.forEach((track, index) => {
+    if (!track || typeof track.id !== "string" || !track.id || typeof track.name !== "string" || !track.name) {
+      throw new Error(`Track ${index + 1} is missing a valid ID or name.`);
+    }
+    if (ids.has(track.id)) throw new Error(`Duplicate track ID: ${track.id}`);
+    ids.add(track.id);
+    if (track.location && (
+      (track.location.latitude !== undefined && typeof track.location.latitude !== "number") ||
+      (track.location.longitude !== undefined && typeof track.location.longitude !== "number")
+    )) throw new Error(`Track ${track.id} has invalid coordinates.`);
 
-    document.getElementById("track-list-view").innerHTML = trackCardsHTML;
-
-    document.querySelectorAll("#track-list-view .location-section iframe").forEach(iframe => {
-      const mapContainer = document.createElement("div");
-      mapContainer.className = "track-location-map";
-      mapContainer.setAttribute("role", "region");
-      mapContainer.setAttribute("aria-label", iframe.title || "Track location map");
-      iframe.replaceWith(mapContainer);
+    validateOptionalArray(track, "gallery", (trackId, fieldPath, image) => {
+      requireString(trackId, `${fieldPath}.src`, image.src);
+      if (typeof image.alt !== "string") {
+        throw new Error(`Track ${trackId}, field ${fieldPath}.alt: must be a string.`);
+      }
+      if (image.active !== undefined && typeof image.active !== "boolean") {
+        throw new Error(`Track ${trackId}, field ${fieldPath}.active: must be a boolean when present.`);
+      }
     });
 
-    console.log("Track cards loaded successfully.");
+    validateOptionalArray(track, "facilities", (trackId, fieldPath, facility) => {
+      requireString(trackId, `${fieldPath}.name`, facility.name);
+      if (typeof facility.available !== "boolean" && facility.available !== "unknown") {
+        throw new Error(`Track ${trackId}, field ${fieldPath}.available: must be a boolean or "unknown".`);
+      }
+      if (facility.note !== undefined && typeof facility.note !== "string") {
+        throw new Error(`Track ${trackId}, field ${fieldPath}.note: must be a string when present.`);
+      }
+    });
+
+    validateOptionalArray(track, "externalLinks", (trackId, fieldPath, link) => {
+      requireString(trackId, `${fieldPath}.label`, link.label);
+      requireString(trackId, `${fieldPath}.url`, link.url);
+    });
+  });
+  return data.tracks;
+}
+
+function renderTrackCard(track) {
+  const specs = track.specifications || {};
+  const location = track.location || {};
+  const attr = (name, value) => value === undefined ? "" : ` ${name}="${escapeTrackHtml(value)}"`;
+  const cardAttributes = [
+    `data-track-id="${escapeTrackHtml(track.id)}"`,
+    attr("data-surface", specs.surface), attr("data-environment", specs.environment),
+    attr("data-length", specs.length), attr("data-lat", location.latitude), attr("data-lng", location.longitude)
+  ].join("");
+  const summary = track.summary || {};
+  const summaryLabels = [summary.length, summary.surface].filter(value => value !== undefined);
+  const standardLanes = Number.isFinite(specs.lanes) ? `${specs.lanes} lanes` : "";
+  let lanesHtml = "";
+  if (standardLanes) {
+    const additionalLanes = typeof summary.lanes === "string" && summary.lanes.startsWith(standardLanes)
+      ? summary.lanes.slice(standardLanes.length)
+      : "";
+    lanesHtml = `<span>${escapeTrackHtml(standardLanes)}${additionalLanes ? `<span class="extra-lanes hide-when-collapsed">${escapeTrackHtml(additionalLanes)}</span>` : ""}</span>`;
+  } else if (typeof summary.lanes === "string" && summary.lanes.trim().toUpperCase() === "N/A") {
+    lanesHtml = `<span><span class="extra-lanes hide-when-collapsed">${escapeTrackHtml(summary.lanes)}</span></span>`;
+  }
+  const summaryHtml = [
+    ...summaryLabels.map(value => `<span>${escapeTrackHtml(value)}</span>`),
+    lanesHtml
+  ].filter(Boolean).join("\n          ");
+
+  let content = "";
+  const links = Array.isArray(track.externalLinks) ? track.externalLinks : [];
+  if (location.address !== undefined || location.mapEmbed || links.length) {
+    content += `<div class="location-section">\n`;
+    if (location.address !== undefined) content += `<h4>Address</h4><p>${escapeTrackHtml(location.address)}</p>\n`;
+    if (location.mapEmbed) {
+      content += `<div class="track-location-map" role="region" aria-label="${escapeTrackHtml(location.mapEmbed.title || "Track location map")}"></div>\n`;
+    }
+    if (links.length) content += `<p>${links.map(link => `<a href="${escapeTrackHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeTrackHtml(link.label)}</a>`).join("<br>")}</p>\n`;
+    content += `</div>\n`;
+  }
+
+  if (track.description !== undefined) {
+    content += `<section class="track-introduction"><h4>About the Track</h4><p>${escapeTrackHtml(track.description)}</p></section>\n`;
+  }
+  if (Array.isArray(track.gallery) && track.gallery.length) {
+    const activeIndex = Math.max(0, track.gallery.findIndex(image => image.active));
+    content += `<div class="track-gallery" data-index="${activeIndex}"><div class="track-gallery-images">`;
+    content += track.gallery.map((image, index) => `<img src="${escapeTrackHtml(image.src)}" alt="${escapeTrackHtml(image.alt || "")}"${index === activeIndex ? ' class="active"' : ""}>`).join("");
+    content += `</div><div class="gallery-controls"><button type="button" class="secondary" aria-label="Previous photo" onclick="changeTrackPhoto(this, -1)">&#10094;</button><span class="gallery-counter">${activeIndex + 1} / ${track.gallery.length}</span><button type="button" class="secondary" aria-label="Next photo" onclick="changeTrackPhoto(this, 1)">&#10095;</button></div></div>\n`;
+  }
+  if (Array.isArray(track.facilities) && track.facilities.length) {
+    content += `<section class="track-facilities"><h4>Facilities</h4><div class="facilities-grid">`;
+    content += track.facilities.map(facility => {
+      const availability = facility.available === true ? "yes" : facility.available === false ? "no" : "unknown";
+      const icon = availability === "yes" ? "✓" : availability === "no" ? "✕" : "?";
+      return `<div class="facility-item"><span class="facility-status ${availability}">${icon}</span><div><div class="facility-name">${escapeTrackHtml(facility.name)}</div>${facility.note !== undefined ? `<div class="facility-note">${escapeTrackHtml(facility.note)}</div>` : ""}</div></div>`;
+    }).join("");
+    content += `</div></section>\n`;
+  }
+
+  return `<article class="track-card" ${cardAttributes}>
+    <div class="track-card-summary" role="button" tabindex="0" aria-expanded="false" onclick="toggleTrackCard(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleTrackCard(this); }">
+      <h3>${escapeTrackHtml(track.name)}</h3><p class="track-info">${summaryHtml}</p>
+    </div>
+    <div class="track-card-content">${content}
+      <span class="status"></span>
+      <button type="button" class="track-visit-toggle">Add visit</button>
+      <button type="button" class="secondary track-history-toggle">View records</button>
+      <div class="track-details"><div class="visit-form-container"></div><section class="track-records-panel"><h4>Previous records at this track</h4><div class="track-history-list"></div></section></div>
+    </div>
+  </article>`;
+}
+
+async function loadTrackCards() {
+  try {
+    const response = await fetch("data/tracks.json");
+    if (!response.ok) throw new Error("Failed to load data/tracks.json");
+    const data = await response.json();
+    trackData = validateTrackData(data);
+    loadTrackCardData(trackData);
+    document.getElementById("track-list-view").innerHTML = trackData.map(renderTrackCard).join("\n");
+    console.log(`Track cards loaded successfully (${trackData.length}).`);
     return true;
   } catch (error) {
     console.error("Error loading track cards:", error);
@@ -4480,7 +4582,6 @@ document.addEventListener("touchend", event => {
     retry.textContent = "Retry loading tracks";
     retry.addEventListener("click", async () => {
       if (await loadTrackCards()) {
-        loadTrackCardData();
         sortTrackCards();
         updateAllViews();
         setDirectoryView("map");
