@@ -479,8 +479,6 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .track-records-panel { margin: 12px 0; padding: 14px; background: #fff; border: 1px solid #e1e8e2; border-radius: 12px; }
     .track-records-panel h4 { margin: 0 0 10px; }
     .track-history-filters { margin: 8px 0 12px; }
-    .track-history-mode-label { display: block; color: #617168; font-size: 13px; }
-    .track-history-mode { width: 100%; max-width: 220px; padding: 8px 10px; border: 1px solid #cbd5ce; border-radius: 8px; background: #fff; }
     .track-history-role-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .track-history-role-filters:empty { display: none; }
     .track-history-item { border-top: 1px solid #e1e8e2; padding: 10px 0; }
@@ -1502,14 +1500,12 @@ body {
 
     <section id="visit-history-section" class="history-section page-panel records-page">
       <h2>Visit history</h2>
-      <div class="filter-section">
-        <label for="history-type-filter">Visit mode</label>
-        <select id="history-type-filter">
-          <option value="all">All</option>
-          <option value="training">Training</option>
-          <option value="competition">Competition</option>
-        </select>
-      </div>
+      <fieldset id="history-type-filter" class="visit-roles history-mode-filters">
+        <legend>Visit mode</legend>
+        <label class="role-choice"><input type="radio" name="history-visit-mode" value="all" checked> All</label>
+        <label class="role-choice"><input type="radio" name="history-visit-mode" value="training"> Training</label>
+        <label class="role-choice"><input type="radio" name="history-visit-mode" value="competition"> Competition</label>
+      </fieldset>
       <div id="history-role-filters" class="role-filter-list"></div>
       <div id="visit-history-list"></div>
     </section>
@@ -1655,7 +1651,7 @@ body {
         steeplechaseHeights: ["0.762 m","0.838 m","0.914 m"]
       }
     });
-    const EVENT_CATEGORY_ALIASES = Object.freeze({ middleDistance: "distances", longDistance: "distances", relays: "relay", jumps: "jumping", throws: "throwing" });
+    const EVENT_CATEGORY_ALIASES = Object.freeze({ relays: "relay", jumps: "jumping", throws: "throwing" });
     function findEventConfiguration(type, eventName) {
       const categories = EVENT_CONFIG[type]?.categories || {};
       for (const [category, config] of Object.entries(categories)) {
@@ -2271,9 +2267,17 @@ if (!targetContainer && button &&
         card.querySelector("h3")?.textContent.trim() ||
         "Track";
       const heading = document.createElement("h4"); heading.textContent = recordToEdit ? `Edit visit · ${trackName}` : trackName; form.appendChild(heading);
-      const mode = addField(form, "Visit mode", "select", "visit-type", {items:[
-        {value:"training",label:"Training"},{value:"competition",label:"Competition"}
-      ]});
+      const mode = document.createElement("input"); mode.type = "hidden"; mode.className = "visit-type"; mode.value = recordToEdit ? getVisitMode(recordToEdit) : "training"; form.appendChild(mode);
+      const modeWrap = document.createElement("fieldset"); modeWrap.className = "visit-roles visit-mode-choices";
+      const modeLegend = document.createElement("legend"); modeLegend.textContent = "Visit mode (choose one)"; modeWrap.appendChild(modeLegend); form.appendChild(modeWrap);
+      const modeRadioName = `visit-mode-${makeId()}`;
+      [{value:"training",label:"Training"},{value:"competition",label:"Competition"}].forEach(item => {
+        const labelEl = document.createElement("label"); labelEl.className = "role-choice";
+        const input = document.createElement("input"); input.type = "radio"; input.name = modeRadioName; input.value = item.value; input.checked = mode.value === item.value;
+        input.addEventListener("change", () => { if (input.checked) { mode.value = input.value; mode.dispatchEvent(new Event("change")); } });
+        mode.addEventListener("change", () => { input.checked = mode.value === input.value; });
+        labelEl.append(input, document.createTextNode(` ${item.label}`)); modeWrap.appendChild(labelEl);
+      });
       const rolesWrap = document.createElement("fieldset"); rolesWrap.className = "visit-roles";
       const rolesLegend = document.createElement("legend"); rolesLegend.textContent = "Roles (select all that apply)"; rolesWrap.appendChild(rolesLegend); form.appendChild(rolesWrap);
       let selectedRoles = new Set(recordToEdit ? getVisitRoles(recordToEdit) : []);
@@ -2358,7 +2362,6 @@ if (recordToEdit) {
 
 form.appendChild(actions);
 
-          const eventTypeItems = Object.entries(EVENT_CONFIG).filter(([key]) => key === "track" || key === "field").map(([value, config]) => ({ value, label: config.label }));
      function renderModeFields() {
       // Preserve the currently selected date before rebuilding the fields
       const existingDate = fields.querySelector(".visit-date");
@@ -2402,12 +2405,27 @@ form.appendChild(actions);
           const athleteFieldStart = fields.children.length;
 
           
-          const warmup = addField(fields, "Did you warm up on the track?", "select", "warmup-on-track", {items:[{value:"no",label:"No"},{value:"yes",label:"Yes"}]});
+          const warmup = document.createElement("input"); warmup.type = "hidden"; warmup.className = "warmup-on-track"; warmup.value = "no"; fields.appendChild(warmup);
+          const warmupChoices = document.createElement("fieldset"); warmupChoices.className = "visit-roles warmup-choices";
+          const warmupLegend = document.createElement("legend"); warmupLegend.textContent = "Did you warm up on the track?"; warmupChoices.appendChild(warmupLegend); fields.appendChild(warmupChoices);
+          const warmupRadioName = `warmup-on-track-${makeId()}`;
+          [{value:"yes",label:"Yes"},{value:"no",label:"No"}].forEach(item => {
+            const label = document.createElement("label"); label.className = "role-choice";
+            const radio = document.createElement("input"); radio.type = "radio"; radio.name = warmupRadioName; radio.value = item.value; radio.checked = item.value === "no";
+            radio.addEventListener("change", () => {
+              if (!radio.checked) return;
+              warmup.value = radio.value;
+              warmup.dispatchEvent(new Event("change"));
+            });
+            warmup.addEventListener("change", () => { radio.checked = warmup.value === radio.value; });
+            label.append(radio, document.createTextNode(` ${item.label}`)); warmupChoices.appendChild(label);
+          });
+          const warmupDetails = document.createElement("div"); warmupDetails.className = "warmup-details"; warmupDetails.hidden = true; fields.appendChild(warmupDetails);
           const warmupDistanceLabel = document.createElement("label"); warmupDistanceLabel.textContent = "Warm-up distance on track (km)";
           const warmupDistance = document.createElement("input"); warmupDistance.type = "number"; warmupDistance.min = "0"; warmupDistance.step = "any"; warmupDistance.className = "warmup-distance"; warmupDistance.placeholder = "e.g. 2"; warmupDistance.disabled = true;
-          warmupDistanceLabel.appendChild(warmupDistance); fields.appendChild(warmupDistanceLabel);
+          warmupDistanceLabel.appendChild(warmupDistance); warmupDetails.appendChild(warmupDistanceLabel);
           const warmupDuration = addField(
-            fields,
+            warmupDetails,
             "On-track warm-up duration (HH:MM)",
             "text",
             "warmup-duration",
@@ -2420,7 +2438,7 @@ form.appendChild(actions);
 
           warmup.addEventListener("change", () => {
             const enabled = warmup.value === "yes";
-
+            warmupDetails.hidden = !enabled;
             warmupDistance.disabled = !enabled;
             warmupDuration.disabled = !enabled;
 
@@ -2436,7 +2454,21 @@ form.appendChild(actions);
 
           function addEventRow() {
             const row = document.createElement("div"); row.className = "event-row";
-            const typeSelect = addField(row, "Event type", "select", "competition-event-type", {required:true,items:eventTypeItems});
+            const typeSelect = document.createElement("input"); typeSelect.type = "hidden"; typeSelect.className = "competition-event-type"; typeSelect.value = "track"; row.appendChild(typeSelect);
+            const typeChoices = document.createElement("fieldset"); typeChoices.className = "visit-roles competition-event-type-choices";
+            const typeLegend = document.createElement("legend"); typeLegend.textContent = "Event type"; typeChoices.appendChild(typeLegend); row.appendChild(typeChoices);
+            const typeRadioName = `competition-event-type-${makeId()}`;
+            ["track", "field"].forEach(value => {
+              const label = document.createElement("label"); label.className = "role-choice";
+              const radio = document.createElement("input"); radio.type = "radio"; radio.name = typeRadioName; radio.value = value; radio.checked = value === typeSelect.value;
+              radio.addEventListener("change", () => {
+                if (!radio.checked) return;
+                typeSelect.value = radio.value;
+                typeSelect.dispatchEvent(new Event("change"));
+              });
+              typeSelect.addEventListener("change", () => { radio.checked = typeSelect.value === radio.value; });
+              label.append(radio, document.createTextNode(` ${EVENT_CONFIG[value].label}`)); typeChoices.appendChild(label);
+            });
             const category = addField(row, "Event category", "select", "competition-event-category", {required:true,items:[]});
             const eventSelect = addField(row, "Event", "select", "competition-event-select", {required:true,items:[]});
             const eventStartTime = addField(row, "Event start time", "time", "competition-event-start-time", { required: false });
@@ -2893,7 +2925,7 @@ updateAllViews();
     }
 
     function renderHistoryRoleFilters() {
-      const mode = document.getElementById("history-type-filter").value;
+      const mode = document.querySelector("#history-type-filter input:checked")?.value || "all";
       const container = document.getElementById("history-role-filters"); container.replaceChildren();
       container.dataset.mode = mode;
       if (mode === "all") return;
@@ -2906,7 +2938,7 @@ updateAllViews();
 
     function renderHistory() {
       const list = document.getElementById("visit-history-list"); list.replaceChildren();
-      const filter = document.getElementById("history-type-filter").value;
+      const filter = document.querySelector("#history-type-filter input:checked")?.value || "all";
       const selectedRoles = [...document.querySelectorAll("#history-role-filters input:checked")].map(input => input.value);
       const sorted = [...visitRecords].filter(record => (filter === "all" || getVisitMode(record) === filter) && selectedRoles.every(role => getVisitRoles(record).includes(role))).sort((a,b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || ""));
       if (!sorted.length) { const empty = document.createElement("p"); empty.className = "empty-history"; empty.textContent = "No visits match this filter yet."; list.appendChild(empty); return; }
@@ -3011,12 +3043,13 @@ function toggleTrackHistory(button) {
 
     function updateTrackHistoryRoleFilters(card) {
       const panel = card.querySelector(".track-records-panel");
-      const modeSelect = panel?.querySelector(".track-history-mode");
+      const modeChoices = panel?.querySelector(".track-history-mode");
       const roleFilters = panel?.querySelector(".track-history-role-filters");
-      if (!modeSelect || !roleFilters) return;
+      if (!modeChoices || !roleFilters) return;
       roleFilters.replaceChildren();
-      if (modeSelect.value === "all") return;
-      Object.entries(VISIT_ROLES[modeSelect.value]).forEach(([role, label]) => {
+      const mode = modeChoices.querySelector("input:checked")?.value || "all";
+      if (mode === "all") return;
+      Object.entries(VISIT_ROLES[mode]).forEach(([role, label]) => {
         const choice = document.createElement("label"); choice.className = "role-choice";
         const input = document.createElement("input"); input.type = "checkbox"; input.value = role;
         input.addEventListener("change", () => renderTrackHistory(card));
@@ -3029,21 +3062,23 @@ function toggleTrackHistory(button) {
       const list = panel?.querySelector(".track-history-list");
       if (!panel || !list || panel._trackHistoryFiltersBound) return;
       let controls = panel.querySelector(".track-history-filters");
-      let modeSelect = controls?.querySelector(".track-history-mode");
+      let modeChoices = controls?.querySelector(".track-history-mode");
       let roleFilters = controls?.querySelector(".track-history-role-filters");
       if (!controls) {
         controls = document.createElement("div"); controls.className = "track-history-filters";
-        const modeLabel = document.createElement("label"); modeLabel.className = "track-history-mode-label"; modeLabel.textContent = "Visit mode";
-        modeSelect = document.createElement("select"); modeSelect.className = "track-history-mode";
+        modeChoices = document.createElement("fieldset"); modeChoices.className = "visit-roles track-history-mode";
+        const modeLegend = document.createElement("legend"); modeLegend.textContent = "Visit mode"; modeChoices.appendChild(modeLegend);
+        const modeRadioName = `track-history-mode-${makeId()}`;
         [{value:"all",label:"All"},{value:"training",label:"Training"},{value:"competition",label:"Competition"}].forEach(item => {
-          const option = document.createElement("option"); option.value = item.value; option.textContent = item.label; modeSelect.appendChild(option);
+          const choice = document.createElement("label"); choice.className = "role-choice";
+          const input = document.createElement("input"); input.type = "radio"; input.name = modeRadioName; input.value = item.value; input.checked = item.value === "all";
+          choice.append(input, document.createTextNode(` ${item.label}`)); modeChoices.appendChild(choice);
         });
-        modeLabel.appendChild(modeSelect);
         roleFilters = document.createElement("div"); roleFilters.className = "track-history-role-filters"; roleFilters.setAttribute("aria-label", "Filter by roles");
-        controls.append(modeLabel, roleFilters);
+        controls.append(modeChoices, roleFilters);
         panel.insertBefore(controls, list);
       }
-      modeSelect.addEventListener("change", () => { updateTrackHistoryRoleFilters(card); renderTrackHistory(card); });
+      modeChoices.addEventListener("change", () => { updateTrackHistoryRoleFilters(card); renderTrackHistory(card); });
       panel._trackHistoryFiltersBound = true;
       updateTrackHistoryRoleFilters(card);
     }
@@ -3054,7 +3089,7 @@ function toggleTrackHistory(button) {
       if (!list) return;
       list.replaceChildren();
       const panel = card.querySelector(".track-records-panel");
-      const selectedMode = panel.querySelector(".track-history-mode")?.value || "all";
+      const selectedMode = panel.querySelector(".track-history-mode input:checked")?.value || "all";
       const selectedRoles = [...panel.querySelectorAll(".track-history-role-filters input:checked")].map(input => input.value);
       const records = visitRecords
         .filter(record => record.trackId === card.dataset.trackId)
