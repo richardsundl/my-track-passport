@@ -33,7 +33,7 @@ index_v0: Original track directory with visit check-ins and running-distance log
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #04f804;
+      background: #f4f4f4;
       color: #20352c;
     }
 
@@ -442,24 +442,12 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .visit-form { background: #f4f6f4; border-radius: 10px; padding: 14px; }
     .visit-form h4 { margin: 0 0 12px; }
     .visit-form label { display: block; margin-top: 10px; font-size: 14px; color: #46574c; }
-    .visit-form input, .visit-form select { box-sizing: border-box; max-width: 100%; margin-top: 5px; }
-    .visit-form .mode-fields { min-width: 0; }
-    .visit-form .mode-fields > label { box-sizing: border-box; width: 100%; min-width: 0; }
-    .visit-form .mode-fields > label > input,
-    .visit-form .mode-fields > label > select { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; }
-    .visit-form .mode-fields input[type="date"],
-    .visit-form .mode-fields input[type="time"] { inline-size: 100%; min-inline-size: 0; max-inline-size: 100%; }
-    .visit-form .mode-fields input[type="date"]::-webkit-date-and-time-value,
-    .visit-form .mode-fields input[type="time"]::-webkit-date-and-time-value { box-sizing: border-box; min-width: 0; width: 100%; }
+    .visit-form input, .visit-form select { margin-top: 5px; }
     .duration-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 5px; }
     .duration-picker label { margin: 0; }
     .duration-picker input { box-sizing: border-box; width: 100%; }
     .duration-picker span { display: block; font-size: 12px; color: #66756b; }
     .training-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-items: start; }
-    .training-fields-grid > label { box-sizing: border-box; width: 100%; min-width: 0; }
-    .training-fields-grid > label > input { box-sizing: border-box; display: block; width: 100%; min-width: 0; max-width: 100%; }
-    .training-fields-grid > .training-date-field > input,
-    .training-fields-grid > .training-start-field > input { inline-size: 100%; min-inline-size: 0; }
     .training-fields-grid > .training-date-field { grid-column: 1; grid-row: 1; }
     .training-fields-grid > .training-distance-field { grid-column: 2; grid-row: 1; }
     .training-fields-grid > .training-start-field { grid-column: 1; grid-row: 2; }
@@ -473,7 +461,6 @@ index_v0: Original track directory with visit check-ins and running-distance log
     }
     .visit-form textarea {
        display: block;
-       box-sizing: border-box;
        width: 100%;
        margin-top: 5px;
        padding: 10px;
