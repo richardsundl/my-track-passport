@@ -1584,7 +1584,7 @@ body {
         const migrated = { ...record, visitMode: mode, roles: getVisitRoles(record) };
         delete migrated.type;
         if (record.type === "spectating") {
-          delete migrated.events; delete migrated.warmupOnTrack; delete migrated.warmupDistanceMetres; delete migrated.warmupDurationMinutes;
+          delete migrated.events; delete migrated.warmupOnTrack; delete migrated.warmupDistanceMetres; delete migrated.warmupDurationMinutes; delete migrated.warmupDurationSeconds;
         }
         return migrated;
       });
@@ -1754,7 +1754,7 @@ body {
           if (!dateParts || parsedDate.getFullYear() !== Number(dateParts[1]) || parsedDate.getMonth() !== Number(dateParts[2]) - 1 || parsedDate.getDate() !== Number(dateParts[3])) throw new Error(`${label} has an invalid date.`);
         }
         if (record.startTime != null && record.startTime !== "" && (typeof record.startTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(record.startTime))) throw new Error(`${label} has an invalid startTime.`);
-        for (const key of ["distanceMetres", "durationMinutes", "durationSeconds", "warmupDistanceMetres", "warmupDurationMinutes"]) {
+        for (const key of ["distanceMetres", "durationMinutes", "durationSeconds", "warmupDistanceMetres", "warmupDurationMinutes", "warmupDurationSeconds"]) {
           if (record[key] != null && (!Number.isFinite(record[key]) || record[key] < 0)) throw new Error(`${label} has an invalid ${key}.`);
         }
         if (mode === "competition" && roles.includes("athlete") && (!Array.isArray(record.events) || record.events.length === 0)) throw new Error(`${label} must contain at least one valid event in events when Athlete is selected.`);
@@ -2009,7 +2009,7 @@ const trainingDuration = visits.reduce((sum, record) => {
   }
 
   if (getVisitMode(record) === "competition" && getVisitRoles(record).includes("athlete") && record.warmupOnTrack) {
-    return sum + Number(record.warmupDurationMinutes ?? 0) * 60;
+    return sum + (record.warmupDurationSeconds != null ? Number(record.warmupDurationSeconds) : Number(record.warmupDurationMinutes ?? 0) * 60);
   }
 
   return sum;
@@ -2454,27 +2454,33 @@ form.appendChild(actions);
           const warmupDistanceLabel = document.createElement("label"); warmupDistanceLabel.textContent = "Warm-up distance on track (km)";
           const warmupDistance = document.createElement("input"); warmupDistance.type = "number"; warmupDistance.min = "0"; warmupDistance.step = "any"; warmupDistance.className = "warmup-distance"; warmupDistance.placeholder = "e.g. 2"; warmupDistance.disabled = true;
           warmupDistanceLabel.appendChild(warmupDistance); warmupDetails.appendChild(warmupDistanceLabel);
-          const warmupDuration = addField(
-            warmupDetails,
-            "On-track warm-up duration (HH:MM)",
-            "text",
-            "warmup-duration",
-            {
-              placeholder: "e.g. 00:35"
-            }           
-          );
-
-          warmupDuration.disabled = true;
+          const warmupDurationLabel = document.createElement("label");
+          warmupDurationLabel.textContent = "On-track warm-up duration";
+          const warmupDurationPicker = document.createElement("div");
+          warmupDurationPicker.className = "duration-picker";
+          [["Hours", "warmup-hours", 99], ["Minutes", "warmup-minutes", 59], ["Seconds", "warmup-seconds", 59]].forEach(([caption, className, max]) => {
+            const unitLabel = document.createElement("label");
+            const unitCaption = document.createElement("span"); unitCaption.textContent = caption;
+            const listId = `duration-options-${makeId()}`;
+            const options = document.createElement("datalist"); options.id = listId;
+            for (let value = 0; value <= max; value += 1) {
+              const option = document.createElement("option"); option.value = String(value); options.appendChild(option);
+            }
+            const input = document.createElement("input"); input.type = "text"; input.inputMode = "numeric"; input.autocomplete = "off"; input.setAttribute("list", listId); input.className = className; input.placeholder = "0"; input.disabled = true;
+            unitLabel.append(unitCaption, input, options); warmupDurationPicker.appendChild(unitLabel);
+          });
+          warmupDurationLabel.appendChild(warmupDurationPicker); warmupDetails.appendChild(warmupDurationLabel);
+          const warmupDurationInputs = [...warmupDurationPicker.querySelectorAll("input")];
 
           warmup.addEventListener("change", () => {
             const enabled = warmup.value === "yes";
             warmupDetails.hidden = !enabled;
             warmupDistance.disabled = !enabled;
-            warmupDuration.disabled = !enabled;
+            warmupDurationInputs.forEach(input => { input.disabled = !enabled; });
 
             if (!enabled) {
               warmupDistance.value = "";
-              warmupDuration.value = "";
+              warmupDurationInputs.forEach(input => { input.value = ""; });
              }
           });
 
@@ -2619,15 +2625,14 @@ if (totalDurationSeconds != null) {
             warmup.dispatchEvent(new Event("change"));
           }
           if (warmupDistance && recordToEdit.warmupOnTrack) warmupDistance.value = (Number(recordToEdit.warmupDistanceMetres || 0) / 1000).toString();
-          const warmupDurationInput =
-            fields.querySelector(".warmup-duration");
-
-          if (warmupDurationInput && recordToEdit.warmupOnTrack) {
-              const warmupDuration = recordToEdit.warmupDurationMinutes;
-              warmupDurationInput.value = typeof warmupDuration === "number" && Number.isFinite(warmupDuration) && warmupDuration >= 0
-                ? formatDuration(warmupDuration)
-                : "";
-       }
+          if (recordToEdit.warmupOnTrack) {
+            const warmupSeconds = recordToEdit.warmupDurationSeconds != null
+              ? Number(recordToEdit.warmupDurationSeconds)
+              : Number(recordToEdit.warmupDurationMinutes || 0) * 60;
+            fields.querySelector(".warmup-hours").value = Math.floor(warmupSeconds / 3600);
+            fields.querySelector(".warmup-minutes").value = Math.floor(warmupSeconds % 3600 / 60);
+            fields.querySelector(".warmup-seconds").value = warmupSeconds % 60;
+          }
 
           const savedEvents = Array.isArray(recordToEdit.events) ? recordToEdit.events : [];
           const eventsList = fields.querySelector(".events-list");
@@ -2823,11 +2828,11 @@ const warmupKm = warmupOnTrack
   ? Number(fields.querySelector(".warmup-distance").value)
   : 0;
 
-const warmupDurationText = warmupOnTrack
-  ? fields.querySelector(".warmup-duration").value.trim()
-  : "";
+const warmupDurationParts = warmupOnTrack
+  ? [".warmup-hours", ".warmup-minutes", ".warmup-seconds"].map(selector => fields.querySelector(selector).value.trim())
+  : ["", "", ""];
 
-let warmupDurationMinutes = 0;
+let warmupDurationSeconds = 0;
 
 if (
   warmupOnTrack &&
@@ -2842,19 +2847,18 @@ if (
 }
 
 if (warmupOnTrack) {
-  const durationMatch =
-    warmupDurationText.match(/^(\d{2,}):([0-5]\d)$/);
-
-  if (!durationMatch) {
-    alert("Please enter the warm-up duration in HH:MM format, e.g. 00:35.");
+  const durationLimits = [99, 59, 59];
+  const invalidIndex = warmupDurationParts.findIndex((value, index) => value !== "" && (!/^\d+$/.test(value) || Number(value) > durationLimits[index]));
+  if (invalidIndex !== -1) {
+    const unit = ["hours (0–99)", "minutes (0–59)", "seconds (0–59)"][invalidIndex];
+    alert(`Warm-up duration ${unit} must be a whole number within the allowed range.`);
     return;
   }
 
-  warmupDurationMinutes =
-    Number(durationMatch[1]) * 60 + Number(durationMatch[2]);
+  warmupDurationSeconds = Number(warmupDurationParts[0] || 0) * 3600 + Number(warmupDurationParts[1] || 0) * 60 + Number(warmupDurationParts[2] || 0);
 
-  if (warmupDurationMinutes <= 0) {
-    alert("Warm-up duration must be greater than 00:00.");
+  if (warmupDurationSeconds <= 0) {
+    alert("Warm-up duration must be greater than 00:00:00.");
     return;
   }
 }
@@ -2865,7 +2869,7 @@ record = createVisitRecord(card.dataset.trackId, "competition", {
   events,
   warmupOnTrack,
   warmupDistanceMetres: Math.round(warmupKm * 1000),
-  warmupDurationMinutes
+  warmupDurationSeconds
 });
 
           }
@@ -2879,9 +2883,10 @@ record = createVisitRecord(card.dataset.trackId, "competition", {
         if (recordToEdit) {
           const previousMode = getVisitMode(recordToEdit);
           const priorData = { ...recordToEdit };
-          if (previousMode !== mode.value) for (const key of ["distanceMetres","startTime","durationMinutes","durationSeconds","eventName","events","warmupOnTrack","warmupDistanceMetres","warmupDurationMinutes"]) delete priorData[key];
+          if (previousMode !== mode.value) for (const key of ["distanceMetres","startTime","durationMinutes","durationSeconds","eventName","events","warmupOnTrack","warmupDistanceMetres","warmupDurationMinutes","warmupDurationSeconds"]) delete priorData[key];
           else if (previousMode === "training" && !selectedRoles.has("participant")) delete priorData.distanceMetres;
-          else if (previousMode === "competition" && !selectedRoles.has("athlete")) for (const key of ["events","warmupOnTrack","warmupDistanceMetres","warmupDurationMinutes"]) delete priorData[key];
+          else if (previousMode === "competition" && !selectedRoles.has("athlete")) for (const key of ["events","warmupOnTrack","warmupDistanceMetres","warmupDurationMinutes","warmupDurationSeconds"]) delete priorData[key];
+          if (previousMode === "competition" && mode.value === "competition") delete priorData.warmupDurationMinutes;
           record = { ...priorData, ...record };
           if (previousMode === "training" && mode.value === "training") delete record.durationMinutes;
           delete record.type;
@@ -2963,6 +2968,13 @@ updateAllViews();
       return record.durationMinutes == null ? "unknown" : formatDuration(record.durationMinutes);
     }
 
+    function formatWarmupRecordDuration(record) {
+      if (record.warmupDurationSeconds != null) return formatDurationSeconds(record.warmupDurationSeconds);
+      return typeof record.warmupDurationMinutes === "number" && Number.isFinite(record.warmupDurationMinutes) && record.warmupDurationMinutes >= 0
+        ? formatDuration(record.warmupDurationMinutes)
+        : "Not recorded";
+    }
+
     function recordCompetitionDistance(record) {
       if (getVisitMode(record) !== "competition" || !getVisitRoles(record).includes("athlete")) return 0;
       return Array.isArray(record.events)
@@ -3017,8 +3029,7 @@ updateAllViews();
 );
 
   if (record.warmupOnTrack) {
-    const warmupDuration = record.warmupDurationMinutes;
-    lines.push(`On-track warm-up duration: ${typeof warmupDuration === "number" && Number.isFinite(warmupDuration) && warmupDuration >= 0 ? formatDuration(warmupDuration) : "Not recorded"}`);
+    lines.push(`On-track warm-up duration: ${formatWarmupRecordDuration(record)}`);
   }
 
   if (getVisitRoles(record).includes("athlete")) {
@@ -3178,8 +3189,7 @@ function toggleTrackHistory(button) {
 );
 
   if (record.warmupOnTrack) {
-    const warmupDuration = record.warmupDurationMinutes;
-    lines.push(`On-track warm-up duration: ${typeof warmupDuration === "number" && Number.isFinite(warmupDuration) && warmupDuration >= 0 ? formatDuration(warmupDuration) : "Not recorded"}`);
+    lines.push(`On-track warm-up duration: ${formatWarmupRecordDuration(record)}`);
   }
 
   if (getVisitRoles(record).includes("athlete")) {
