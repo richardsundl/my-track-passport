@@ -33,7 +33,7 @@ index_v0: Original track directory with visit check-ins and running-distance log
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #eb0202;
+      background: #f4f4f4;
       color: #20352c;
     }
 
@@ -448,6 +448,15 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .visit-form textarea { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; }
     .visit-form .mode-fields { box-sizing: border-box; width: 100%; min-width: 0; }
     .visit-form .mode-fields > label { box-sizing: border-box; width: 100%; min-width: 0; }
+    @supports selector(input::-webkit-date-and-time-value) {
+      .visit-form input[type="date"] { padding: 0; }
+      .visit-form input[type="date"]::-webkit-date-and-time-value {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        padding: 10px;
+      }
+    }
     .duration-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 5px; }
     .duration-picker label { margin: 0; }
     .duration-picker input { box-sizing: border-box; width: 100%; }
