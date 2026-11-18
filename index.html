@@ -1067,25 +1067,19 @@ body {
 .map-legend .visited-key { background: #218c4a; }
 .map-legend .not-visited-key { background: #d34b43; }
 
-/* Floating locate control stays anchored to the Leaflet map corners. */
-.leaflet-bottom.leaflet-right > .leaflet-control-locate {
-  margin: 0
-    calc(12px + env(safe-area-inset-right, 0px))
-    calc(12px + env(safe-area-inset-bottom, 0px))
-    0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
+/* Keep the Leaflet locate control inset from the map edge and device safe area. */
 #locate-me-button {
   display: grid;
   place-items: center;
-  width: 60px;
-  height: 60px;
-  margin: 0;
+  width: 40px;
+  height: 40px;
+  margin: 0
+    calc(8px + env(safe-area-inset-right, 0px))
+    calc(8px + env(safe-area-inset-bottom, 0px))
+    0;
   padding: 0;
   border: 1px solid #d5b15f;
-  border-radius: 50%;
+  border-radius: 12px;
   background: #30231b;
   color: #e5bd62;
   box-shadow: 0 3px 10px rgba(0, 0, 0, .42);
