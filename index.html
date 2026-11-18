@@ -448,6 +448,10 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .visit-form textarea { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; }
     .visit-form .mode-fields { box-sizing: border-box; width: 100%; min-width: 0; }
     .visit-form .mode-fields > label { box-sizing: border-box; width: 100%; min-width: 0; }
+    .warmup-details-grid,
+    .event-start-result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-items: start; min-width: 0; }
+    .warmup-details-grid > label,
+    .event-start-result-grid > * { box-sizing: border-box; width: 100%; min-width: 0; }
     @supports selector(input::-webkit-date-and-time-value) {
       .visit-form input[type="date"],
       .visit-form input[type="time"] { padding: 0; }
@@ -474,6 +478,10 @@ index_v0: Original track directory with visit check-ins and running-distance log
       .training-fields-grid > .training-distance-field,
       .training-fields-grid > .training-start-field,
       .training-fields-grid > .training-duration-field { grid-column: 1; grid-row: auto; }
+    }
+    @media (max-width: 900px) {
+      .warmup-details-grid,
+      .event-start-result-grid { grid-template-columns: minmax(0, 1fr); }
     }
     .visit-form textarea {
        display: block;
@@ -2530,9 +2538,10 @@ form.appendChild(actions);
             label.append(radio, document.createTextNode(` ${item.label}`)); warmupChoices.appendChild(label);
           });
           const warmupDetails = document.createElement("div"); warmupDetails.className = "warmup-details"; warmupDetails.hidden = true; fields.appendChild(warmupDetails);
+          const warmupInputsGrid = document.createElement("div"); warmupInputsGrid.className = "warmup-details-grid"; warmupDetails.appendChild(warmupInputsGrid);
           const warmupDistanceLabel = document.createElement("label"); warmupDistanceLabel.textContent = "Warm-up distance on track (km)";
           const warmupDistance = document.createElement("input"); warmupDistance.type = "number"; warmupDistance.min = "0"; warmupDistance.step = "any"; warmupDistance.className = "warmup-distance"; warmupDistance.placeholder = "e.g. 2"; warmupDistance.disabled = true;
-          warmupDistanceLabel.appendChild(warmupDistance); warmupDetails.appendChild(warmupDistanceLabel);
+          warmupDistanceLabel.appendChild(warmupDistance); warmupInputsGrid.appendChild(warmupDistanceLabel);
           const warmupDurationLabel = document.createElement("label");
           warmupDurationLabel.textContent = "On-track warm-up duration";
           const warmupDurationPicker = document.createElement("div");
@@ -2548,7 +2557,7 @@ form.appendChild(actions);
             const input = document.createElement("input"); input.type = "text"; input.inputMode = "numeric"; input.autocomplete = "off"; input.setAttribute("list", listId); input.className = className; input.placeholder = "0"; input.disabled = true;
             unitLabel.append(unitCaption, input, options); warmupDurationPicker.appendChild(unitLabel);
           });
-          warmupDurationLabel.appendChild(warmupDurationPicker); warmupDetails.appendChild(warmupDurationLabel);
+          warmupDurationLabel.appendChild(warmupDurationPicker); warmupInputsGrid.appendChild(warmupDurationLabel);
           const warmupDurationInputs = [...warmupDurationPicker.querySelectorAll("input")];
 
           warmup.addEventListener("change", () => {
@@ -2589,7 +2598,9 @@ form.appendChild(actions);
             const eventStartTime = addField(row, "Event start time", "time", "competition-event-start-time", { required: false });
             
             const dynamic = document.createElement("div"); dynamic.className = "event-dynamic-fields"; row.appendChild(dynamic);
-            const resultContainer = document.createElement("div"); resultContainer.className = "competition-result-container"; row.appendChild(resultContainer);
+            const resultContainer = document.createElement("div"); resultContainer.className = "competition-result-container";
+            const startResultGrid = document.createElement("div"); startResultGrid.className = "event-start-result-grid";
+            startResultGrid.append(eventStartTime.closest("label"), resultContainer); row.appendChild(startResultGrid);
             function renderEventOptions() {
               const categoryConfig = EVENT_CONFIG[typeSelect.value].categories[category.value];
               const options = [...Object.keys(categoryConfig.events).map(name => ({value:name,label:name})), {value:"Other",label:"Other"}];
