@@ -449,8 +449,10 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .visit-form .mode-fields { box-sizing: border-box; width: 100%; min-width: 0; }
     .visit-form .mode-fields > label { box-sizing: border-box; width: 100%; min-width: 0; }
     @supports selector(input::-webkit-date-and-time-value) {
-      .visit-form input[type="date"] { padding: 0; }
-      .visit-form input[type="date"]::-webkit-date-and-time-value {
+      .visit-form input[type="date"],
+      .visit-form input[type="time"] { padding: 0; }
+      .visit-form input[type="date"]::-webkit-date-and-time-value,
+      .visit-form input[type="time"]::-webkit-date-and-time-value {
         box-sizing: border-box;
         width: 100%;
         min-width: 0;
