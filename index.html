@@ -33,7 +33,7 @@ index_v0: Original track directory with visit check-ins and running-distance log
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      background: #e90707;
       color: #20352c;
     }
 
@@ -1693,6 +1693,70 @@ body {
       return definition ? { type, category, definition } : null;
     }
 
+    function normalizeTrackTimeResult(value) {
+      const parts = String(value ?? "").trim().split(":");
+      if (!parts.length || parts.length > 3 || parts.some(part => !part)) return null;
+      const lastIndex = parts.length - 1;
+      if (parts.some((part, index) => index !== lastIndex && !/^\d{1,2}$/.test(part))) return null;
+      if (!/^\d{1,2}(?:\.\d{1,2})?$/.test(parts[lastIndex])) return null;
+
+      const values = parts.map(Number);
+      const seconds = values[lastIndex];
+      if (seconds >= 60) return null;
+      if (parts.length >= 2 && values[lastIndex - 1] >= 60) return null;
+      if (parts.length === 3 && values[0] > 99) return null;
+
+      if (!parts[lastIndex].includes(".")) parts[lastIndex] += ".0";
+      return parts.join(":");
+    }
+
+    function normalizeFieldResult(value) {
+      const text = String(value ?? "").trim();
+      if (!/^\d+(?:\.\d{1,2})?$/.test(text)) return null;
+      const [whole, fraction = ""] = text.split(".");
+      return `${whole}.${fraction.padEnd(2, "0")}`;
+    }
+
+    // 2025 World Athletics men's tables: use the 1400-point mark when present,
+    // otherwise use the best performance listed for that event in the table.
+    const TRACK_SCORING_LIMITS = Object.freeze({
+      "50m": "5.38", "60m": "6.19", "100m": "9.46", "200m": "18.90", "300m": "29.54", "400m": "41.97",
+      "60mH": "6.95", "110mH": "12.28", "300mH": "31.60", "400mH": "44.86",
+      "800m": "1:37.91", "1000m": "2:05.84", "1500m": "3:19.44", "mile": "3:35.28",
+      "2000m": "4:34.64", "3000m": "7:05.53", "two miles": "7:38.54", "5000m": "12:10.09",
+      "10000m": "25:15.44", "2000m SC": "4:50.06", "3000m SC": "7:30.46",
+      "4 by 100m": "35.84", "4 by 200m": "1:15.42", "4 by 400m": "2:47.49",
+      "3000mW": "9:34.36", "5000mW": "16:08.56", "10000mW": "34:00.99", "15000mW": "52:07.88",
+      "20000mW": "1:10:45.40", "30000mW": "1:49:49.02", "35000mW": "2:08:19.89", "50000mW": "3:12:06.40"
+    });
+    const FIELD_SCORING_LIMITS = Object.freeze({
+      "High jump": 2.54, "Pole vault": 6.48, "Long jump": 9.19, "Triple jump": 19.19,
+      "Shot put": Object.freeze({ "7.26 kg": 24.66 }),
+      "Discus": Object.freeze({ "2 kg": 78.39 }),
+      "Hammer": Object.freeze({ "7.26 kg": 92.65 }),
+      "Javelin": Object.freeze({ "800 g": 100.90 })
+    });
+
+    function trackResultSeconds(result) {
+      const parts = String(result).split(":").map(Number);
+      if (parts.length === 1) return parts[0];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      return NaN;
+    }
+
+    function exceedsScoringTableLimit(event) {
+      const resolved = resolveEventConfiguration(event);
+      if (!resolved) return false;
+      if (resolved.type === "track") {
+        const limit = TRACK_SCORING_LIMITS[event.selectedEvent];
+        return limit != null && trackResultSeconds(event.result) < trackResultSeconds(limit);
+      }
+      const limit = FIELD_SCORING_LIMITS[event.selectedEvent];
+      const applicableLimit = typeof limit === "number" ? limit : limit?.[event.implementWeight];
+      return applicableLimit != null && Number(event.result) > applicableLimit;
+    }
+
     function validateCompetitionEvent(event, label) {
       if (!event || typeof event !== "object" || Array.isArray(event)) throw new Error(`${label} must be a valid object.`);
       if (typeof event.eventName !== "string" || !event.eventName.trim()) throw new Error(`${label} is missing a valid eventName.`);
@@ -2533,9 +2597,10 @@ form.appendChild(actions);
               if (isFieldEvent) {
                 addField(resultContainer, "Result (metres; numbers only)", "number", "competition-result-value", {required:true,min:"0",step:"any",placeholder:definition?.resultPlaceholder || "Enter result in metres"});
               } else if (definition?.resultType === "distance") {
-                addField(resultContainer, "Distance covered (metres; numbers only)", "number", "competition-result-distance", {required:true,min:"1",step:"1",placeholder:definition.resultPlaceholder || "e.g. 15200"});
+                const distanceInput = addField(resultContainer, "Distance covered (whole metres)", "text", "competition-result-distance", {required:true,placeholder:definition.resultPlaceholder || "e.g. 15200"});
+                distanceInput.inputMode = "numeric";
               } else {
-                addField(resultContainer, "Result / time (enter in your usual format)", "text", "competition-result-time", {required:true,placeholder:definition?.resultPlaceholder || "e.g. 12.45 or 4:38.89"});
+                addField(resultContainer, "Result / time", "text", "competition-result-time", {required:true,placeholder:definition?.resultPlaceholder || "e.g. 12.45, 1:08.6 or 1:02:03"});
               }
               if (name === "Other") {
                 addField(dynamic, isFieldEvent ? "Custom field event name" : "Custom event name", "text", "competition-custom-name", {required:true,placeholder:"Enter event name"});
@@ -2751,6 +2816,8 @@ if (eventStartTimeInput) {
           
           const rows = [...fields.querySelectorAll(".event-row")];
 
+          let invalidTrackTimeResult = false;
+          let invalidFieldResult = false;
           const events = rows.map(row => {
              const startTime =
              row.querySelector(".competition-event-start-time").value || null;
@@ -2770,6 +2837,15 @@ if (eventStartTimeInput) {
               result = distanceResultInput.value.trim();
             } else {
               result = row.querySelector(".competition-result-time")?.value.trim() || "";
+            }
+            if (eventType === "track" && !definition.distanceFromResult) {
+              const normalizedResult = normalizeTrackTimeResult(result);
+              if (normalizedResult === null) invalidTrackTimeResult = true;
+              else result = normalizedResult;
+            } else if (eventType === "field") {
+              const normalizedResult = normalizeFieldResult(result);
+              if (normalizedResult === null) invalidFieldResult = true;
+              else result = normalizedResult;
             }
             const baseName = selectedName === "Other" ? customName : selectedName;
             let distanceMetres = 0;
@@ -2804,6 +2880,23 @@ if (eventStartTimeInput) {
                    };
           });
           if (!eventName) { alert("Please enter the competition name."); return; }
+          if (invalidTrackTimeResult) {
+            alert("Enter a track time as ss, m:ss or h:mm:ss (up to 99 hours), with seconds and minutes from 0 to 59 and at most 2 decimal places.");
+            return;
+          }
+          if (invalidFieldResult) {
+            alert("Enter a field result as a whole number or with 1 or 2 decimal places, e.g. 6, 6.1 or 6.25.");
+            return;
+          }
+          if (events.some(item => resolveEventConfiguration(item)?.definition?.distanceFromResult && (!/^\d+$/.test(item.result) || Number(item.result) <= 0))) {
+            alert("For a 1 hour run, enter a positive whole number of metres.");
+            return;
+          }
+          const tooGoodEvent = events.find(exceedsScoringTableLimit);
+          if (tooGoodEvent) {
+            alert(`That result looks too good to be true: ${tooGoodEvent.eventName} exceeds the men's World Athletics scoring-table limit.`);
+            return;
+          }
           if (!events.length || events.some((item, index) => {
             const row = rows[index];
             if (!item.eventName || !item.result) return true;
