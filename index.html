@@ -1067,11 +1067,35 @@ body {
 .map-legend .visited-key { background: #218c4a; }
 .map-legend .not-visited-key { background: #d34b43; }
 
-/* User location button */
-#locate-me-button {
-  display: none;
-  margin: 10px 0;
+/* Floating locate control stays anchored to the Leaflet map corners. */
+.leaflet-bottom.leaflet-right > .leaflet-control-locate {
+  margin: 0
+    calc(12px + env(safe-area-inset-right, 0px))
+    calc(12px + env(safe-area-inset-bottom, 0px))
+    0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
+#locate-me-button {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #d5b15f;
+  border-radius: 50%;
+  background: #30231b;
+  color: #e5bd62;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .42);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#locate-me-button:hover { background: #493326; }
+#locate-me-button:active { transform: scale(.96); }
+#locate-me-button:disabled { opacity: .82; cursor: wait; }
+#locate-me-button svg { display: block; width: 28px; height: 28px; pointer-events: none; }
 
 .map-popup-backdrop {
   position: fixed;
@@ -1397,16 +1421,6 @@ body {
 </div>
 
 <div id="track-map-view" role="region" aria-label="Map of athletics tracks"></div>
-
-<button
-  type="button"
-  id="locate-me-button"
-  class="secondary"
-  onclick="locateUser()"
->
-  Locate me 
-</button>
-
 
 <div id="map-legend" class="map-legend">
   <span><i class="visited-key"></i> Visited</span>
@@ -3771,7 +3785,14 @@ function getUserCurrentLocation(onSuccess, onError) {
 
 function locateUser() {
   const button = document.getElementById("locate-me-button");
-  button.textContent = "Locating...";
+  const setLocatingState = isLocating => {
+    if (!button) return;
+    button.disabled = isLocating;
+    button.setAttribute("aria-busy", String(isLocating));
+    button.setAttribute("aria-label", isLocating ? "Locating..." : "Locate me");
+    button.title = isLocating ? "Locating..." : "Locate me";
+  };
+  setLocatingState(true);
 
   getUserCurrentLocation(
     function(location) {
@@ -3794,18 +3815,18 @@ function locateUser() {
           bubblingMouseEvents: false
         }).addTo(directoryMap);
 
-      userLocationMarker.on("click", openUserLocationDialog);
+        userLocationMarker.on("click", openUserLocationDialog);
       }
 
       // Move the map to the user's location
       directoryMap.setView([lat, lng], 13);
 
-      button.textContent = "Locate me";
+      setLocatingState(false);
 
     },
 
     function(error) {
-      button.textContent = "Locate me";
+      setLocatingState(false);
       alert(error.code === "GEOLOCATION_UNSUPPORTED"
         ? error.message
         : "Unable to get your location: " + error.message);
@@ -4229,8 +4250,6 @@ function setDirectoryView(view) {
 
   document.getElementById("track-map-view").style.display = isMap ? "block" : "none";
   document.getElementById("map-legend").style.display = isMap ? "flex" : "none";
-  document.getElementById("locate-me-button").style.display =
-  isMap ? "block" : "none";
   
   document.getElementById("track-list-view").style.display = isMap ? "none" : "block";
   document.getElementById("track-search-section").style.display = isMap ? "none" : "block";
@@ -4257,6 +4276,26 @@ function initialiseDirectoryMap() {
   if (directoryMap || !window.L) return;
 
   directoryMap = L.map("track-map-view").setView([51.48, -0.13], 10);
+
+  const LocateControl = L.Control.extend({
+    options: { position: "bottomright" },
+    onAdd: function() {
+      const button = L.DomUtil.create("button", "leaflet-control-locate");
+      button.type = "button";
+      button.id = "locate-me-button";
+      button.title = "Locate me";
+      button.setAttribute("aria-label", "Locate me");
+      button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>';
+      L.DomEvent.disableClickPropagation(button);
+      L.DomEvent.disableScrollPropagation(button);
+      L.DomEvent.on(button, "click", function(event) {
+        L.DomEvent.stop(event);
+        locateUser();
+      });
+      return button;
+    }
+  });
+  new LocateControl().addTo(directoryMap);
   
     // Open a location dialog when the user clicks anywhere on the map
   directoryMap.on("click", function(event) {
