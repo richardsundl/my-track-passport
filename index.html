@@ -447,6 +447,18 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .duration-picker label { margin: 0; }
     .duration-picker input { box-sizing: border-box; width: 100%; }
     .duration-picker span { display: block; font-size: 12px; color: #66756b; }
+    .training-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-items: start; }
+    .training-fields-grid > .training-date-field { grid-column: 1; grid-row: 1; }
+    .training-fields-grid > .training-distance-field { grid-column: 2; grid-row: 1; }
+    .training-fields-grid > .training-start-field { grid-column: 1; grid-row: 2; }
+    .training-fields-grid > .training-duration-field { grid-column: 2; grid-row: 2; }
+    @media (max-width: 600px) {
+      .training-fields-grid { grid-template-columns: minmax(0, 1fr); }
+      .training-fields-grid > .training-date-field,
+      .training-fields-grid > .training-distance-field,
+      .training-fields-grid > .training-start-field,
+      .training-fields-grid > .training-duration-field { grid-column: 1; grid-row: auto; }
+    }
     .visit-form textarea {
        display: block;
        width: 100%;
@@ -2297,6 +2309,7 @@ if (!targetContainer && button &&
               const oldDistance = fields.querySelector(".training-distance");
               if (input.checked && !oldDistance) {
                 const distance = addField(fields, "Training distance (km)", "number", "training-distance", {required:true,min:"0.001",step:"any",placeholder:"e.g. 4.25"});
+                distance.closest("label")?.classList.add("training-distance-field");
                 fields.insertBefore(distance.closest("label"), fields.querySelector(".training-start-time")?.closest("label") || null);
               }
               if (!input.checked) oldDistance?.closest("label")?.remove();
@@ -2373,8 +2386,9 @@ form.appendChild(actions);
         : (recordToEdit?.date || todayString());
 
       fields.replaceChildren();
+      fields.className = mode.value === "training" ? "mode-fields training-fields-grid" : "mode-fields";
 
-      addField(
+      const dateField = addField(
         fields,
          mode.value === "training"
            ? "Training date"
@@ -2383,17 +2397,23 @@ form.appendChild(actions);
        "visit-date",
        { required: true, value: selectedDate }
      );
+        if (mode.value === "training") dateField.closest("label")?.classList.add("training-date-field");
         if (mode.value === "training") {
-          if (selectedRoles.has("participant")) addField(fields, "Training distance (km)", "number", "training-distance", {required:true,min:"0.001",step:"any",placeholder:"e.g. 4.25"});
-          addField(
+          if (selectedRoles.has("participant")) {
+            const distance = addField(fields, "Training distance (km)", "number", "training-distance", {required:true,min:"0.001",step:"any",placeholder:"e.g. 4.25"});
+            distance.closest("label")?.classList.add("training-distance-field");
+          }
+          const startTime = addField(
             fields,
              "Start time",
              "time",
              "training-start-time",
              {required:false}
             );
+          startTime.closest("label")?.classList.add("training-start-field");
 
           const durationLabel = document.createElement("label");
+          durationLabel.className = "training-duration-field";
           durationLabel.textContent = "Training duration";
           const durationPicker = document.createElement("div");
           durationPicker.className = "duration-picker";
