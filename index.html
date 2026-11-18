@@ -33,7 +33,7 @@ index_v0: Original track directory with visit check-ins and running-distance log
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      background: #eb0202;
       color: #20352c;
     }
 
@@ -443,11 +443,16 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .visit-form h4 { margin: 0 0 12px; }
     .visit-form label { display: block; margin-top: 10px; font-size: 14px; color: #46574c; }
     .visit-form input, .visit-form select { margin-top: 5px; }
+    .visit-form input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
+    .visit-form select,
+    .visit-form textarea { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; }
+    .visit-form .mode-fields { box-sizing: border-box; width: 100%; min-width: 0; }
+    .visit-form .mode-fields > label { box-sizing: border-box; width: 100%; min-width: 0; }
     .duration-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 5px; }
     .duration-picker label { margin: 0; }
     .duration-picker input { box-sizing: border-box; width: 100%; }
     .duration-picker span { display: block; font-size: 12px; color: #66756b; }
-    .training-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-items: start; }
+    .training-fields-grid { display: grid; box-sizing: border-box; width: 100%; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-items: start; }
     .training-fields-grid > .training-date-field { grid-column: 1; grid-row: 1; }
     .training-fields-grid > .training-distance-field { grid-column: 2; grid-row: 1; }
     .training-fields-grid > .training-start-field { grid-column: 1; grid-row: 2; }
