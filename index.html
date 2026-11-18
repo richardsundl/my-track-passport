@@ -443,6 +443,14 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .visit-form h4 { margin: 0 0 12px; }
     .visit-form label { display: block; margin-top: 10px; font-size: 14px; color: #46574c; }
     .visit-form input, .visit-form select { box-sizing: border-box; max-width: 100%; margin-top: 5px; }
+    .visit-form .mode-fields { min-width: 0; }
+    .visit-form .mode-fields > label { box-sizing: border-box; width: 100%; min-width: 0; }
+    .visit-form .mode-fields > label > input,
+    .visit-form .mode-fields > label > select { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; }
+    .visit-form .mode-fields input[type="date"],
+    .visit-form .mode-fields input[type="time"] { inline-size: 100%; min-inline-size: 0; max-inline-size: 100%; }
+    .visit-form .mode-fields input[type="date"]::-webkit-date-and-time-value,
+    .visit-form .mode-fields input[type="time"]::-webkit-date-and-time-value { box-sizing: border-box; min-width: 0; width: 100%; }
     .duration-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 5px; }
     .duration-picker label { margin: 0; }
     .duration-picker input { box-sizing: border-box; width: 100%; }
