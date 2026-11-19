@@ -1264,6 +1264,64 @@ body {
   background-repeat: no-repeat;
 }
 
+@media (max-width: 600px), (max-height: 500px) and (pointer: coarse) {
+  body.mobile-directory-map-active { overflow: hidden; }
+  main.container.mobile-directory-map {
+    position: fixed;
+    inset: 0 0 calc(66px + env(safe-area-inset-bottom, 0px));
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    margin: 0;
+    padding: 24px 0 0;
+    overflow: hidden;
+  }
+  main.container.mobile-directory-map > :not(.directory-page):not(#map-track-popup) {
+    display: none !important;
+  }
+  main.container.mobile-directory-map > .directory-page {
+    display: flex !important;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+  main.container.mobile-directory-map .directory-toolbar {
+    flex: 0 0 auto;
+    margin: 0 12px 8px;
+  }
+  main.container.mobile-directory-map #track-map-view {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    width: calc(100% - 12px);
+    height: auto;
+    margin: 0 6px;
+    border-radius: 12px;
+  }
+  main.container.mobile-directory-map #map-legend {
+    display: none !important;
+  }
+  #track-map-view .mobile-map-legend {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    margin: 0 0 6px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .9);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .24);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+
 .map-popup-backdrop {
   position: fixed;
   inset: 0;
@@ -3642,6 +3700,7 @@ function openTrackDetailPage(trackId, openVisit = false) {
     trackDetailReturnScrollTop = window.scrollY;
   }
   directory.classList.add("track-detail-open");
+  syncDirectoryMapLayout();
   window.scrollTo(0, 0);
 
   requestAnimationFrame(() => initialiseTrackLocationMaps(card));
@@ -3771,6 +3830,7 @@ function closeTrackDetailSubpage() {
 
 function closeTrackDetailPage() {
   document.querySelector(".directory-page")?.classList.remove("track-detail-open");
+  syncDirectoryMapLayout();
   document.getElementById("track-detail-content").replaceChildren();
   window.scrollTo(0, trackDetailReturnScrollTop);
   if (directoryView === "map") {
@@ -3894,6 +3954,8 @@ function showPage(page) {
   if (activeButton) {
     activeButton.classList.add("active");
   }
+
+  syncDirectoryMapLayout();
 
   // Return to the top when switching pages
   window.scrollTo(0, 0);
@@ -4416,6 +4478,8 @@ function setDirectoryView(view) {
   directoryView = view === "list" ? "list" : "map";
   const isMap = directoryView === "map";
 
+  syncDirectoryMapLayout();
+
   document.getElementById("track-map-view").style.display = isMap ? "block" : "none";
   document.getElementById("map-legend").style.display = isMap ? "flex" : "none";
   
@@ -4438,6 +4502,19 @@ function setDirectoryView(view) {
   document.getElementById("track-sort-select").value = trackSortOrder;
   applyTrackSort();
 }
+}
+
+function syncDirectoryMapLayout() {
+  const main = document.querySelector("main.container");
+  const directory = document.querySelector(".directory-page");
+  const isMobileViewport = window.matchMedia(
+    "(max-width: 600px), (max-height: 500px) and (pointer: coarse)"
+  ).matches;
+  const isFullscreenMap = isMobileViewport && directoryView === "map" &&
+    directory?.classList.contains("active-page") &&
+    !directory.classList.contains("track-detail-open");
+  if (main) main.classList.toggle("mobile-directory-map", Boolean(isFullscreenMap));
+  document.body.classList.toggle("mobile-directory-map-active", Boolean(isFullscreenMap));
 }
 
 function initialiseDirectoryMap() {
@@ -4621,6 +4698,16 @@ const scaleControl = L.control.scale({
   metric: true,
   imperial: false
 }).addTo(directoryMap);
+
+const MobileMapLegendControl = L.Control.extend({
+  options: { position: "bottomleft" },
+  onAdd: function() {
+    const legend = L.DomUtil.create("div", "map-legend mobile-map-legend");
+    legend.innerHTML = document.getElementById("map-legend").innerHTML;
+    return legend;
+  }
+});
+new MobileMapLegendControl().addTo(directoryMap);
 
 // Show track names when the scale reaches 1 km or below
 function updateTrackLabels() {
@@ -5100,6 +5187,7 @@ async function loadTrackCards() {
 }
 
 async function initApp() {
+  window.addEventListener("resize", syncDirectoryMapLayout, { passive: true });
   document.getElementById("track-search").addEventListener("input", filterTracks);
   document.getElementById("history-type-filter").addEventListener("change", () => { renderHistoryRoleFilters(); renderHistory(); });
   document.getElementById("backup-file").addEventListener("change", importBackup);
