@@ -3910,6 +3910,7 @@ let directoryView = "map";
 let directoryMap = null;
 let directoryMapMarkers = [];
 let directoryMapHasInitialFit = false;
+let refreshDirectoryMapSearchResults = null;
 
 let userLocationMarker = null;
 let userLocation = null;
@@ -4476,6 +4477,12 @@ function initialiseDirectoryMap() {
         results.append(paragraph);
       };
 
+      const getVisibleMapTrackIds = () => new Set(
+        Array.from(document.querySelectorAll("#track-list-view > .track-card"))
+          .filter(card => matchesTrackFilters(card))
+          .map(card => card.dataset.trackId)
+      );
+
       const renderResults = () => {
         const query = input.value.trim();
         if (Array.from(query).length < 3) {
@@ -4485,14 +4492,15 @@ function initialiseDirectoryMap() {
         }
 
         const normalizedQuery = query.toLocaleLowerCase();
+        const visibleTrackIds = getVisibleMapTrackIds();
         const matches = trackData
-          .filter(track => track.name.toLocaleLowerCase().includes(normalizedQuery) && trackMapLocations[track.id])
+          .filter(track => visibleTrackIds.has(track.id) && track.name.toLocaleLowerCase().includes(normalizedQuery) && trackMapLocations[track.id])
           .sort((first, second) => first.name.localeCompare(second.name));
 
         results.replaceChildren();
         results.hidden = false;
         if (!matches.length) {
-          showMessage("No tracks found.");
+          results.hidden = true;
           return;
         }
 
@@ -4503,6 +4511,10 @@ function initialiseDirectoryMap() {
           result.textContent = track.name;
           result.addEventListener("click", function(event) {
             L.DomEvent.stop(event);
+            if (!getVisibleMapTrackIds().has(track.id)) {
+              renderResults();
+              return;
+            }
             const location = trackMapLocations[track.id];
             if (!location) return;
             directoryMap.flyTo(
@@ -4521,6 +4533,7 @@ function initialiseDirectoryMap() {
           results.append(result);
         });
       };
+      refreshDirectoryMapSearchResults = renderResults;
 
       toggle.addEventListener("click", function(event) {
         L.DomEvent.stop(event);
@@ -4676,6 +4689,8 @@ function refreshDirectoryMap({ fitBounds = false } = {}) {
       }
     }
   }
+
+  if (refreshDirectoryMapSearchResults) refreshDirectoryMapSearchResults();
 }
 
 function escapeMapLabel(value) {
