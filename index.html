@@ -4511,6 +4511,12 @@ function initialiseDirectoryMap() {
               { animate: true }
             );
             input.blur();
+            input.value = "";
+            panel.hidden = true;
+            results.replaceChildren();
+            results.hidden = true;
+            control.classList.remove("is-open");
+            toggle.setAttribute("aria-expanded", "false");
           });
           results.append(result);
         });
