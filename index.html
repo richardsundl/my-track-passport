@@ -1236,6 +1236,10 @@ body {
   border-radius: 12px;
   overflow: hidden;
 }
+#track-map-view .leaflet-control-scale {
+  margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(-8px);
+}
 #track-map-view .leaflet-control-zoom a {
   box-sizing: border-box;
   width: 100%;
