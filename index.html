@@ -1043,6 +1043,114 @@ body {
   background: #e9eee9;
   z-index: 1;
 }
+.leaflet-control-track-search {
+  position: relative;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.leaflet-control-track-search.is-open { z-index: 1200; }
+.track-directory-search-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: #302d55;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .45);
+}
+.track-directory-search-toggle:hover { background: #f2f1f7; }
+.track-directory-search-toggle svg { width: 21px; height: 21px; }
+.leaflet-control-track-search.is-open .track-directory-search-toggle {
+  visibility: hidden;
+  pointer-events: none;
+}
+.track-directory-search-panel {
+  position: absolute;
+  z-index: 1200;
+  top: 0;
+  left: 0;
+  width: min(640px, calc(100vw - 44px));
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .35);
+}
+.track-directory-search-panel[hidden] { display: none; }
+.track-directory-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 6px;
+  background: #fff;
+  color: #302d55;
+}
+.track-directory-search-bar svg { flex: 0 0 20px; width: 20px; height: 20px; }
+.track-directory-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: #fff;
+  color: #20352c;
+  font-size: 16px;
+}
+.track-directory-search-input::placeholder { color: #8a938e; opacity: 1; }
+.track-directory-search-close {
+  flex: 0 0 28px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #302d55;
+  font-size: 25px;
+  font-weight: 300;
+  line-height: 1;
+}
+.track-directory-search-close:hover { background: #f0f1f0; }
+.track-directory-search-results {
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+}
+.track-directory-search-message {
+  margin: 0;
+  padding: 14px 16px;
+  color: #66736c;
+  font-size: 14px;
+}
+.track-directory-search-result {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 1px solid #eceeed;
+  border-radius: 0;
+  background: #fff;
+  color: #20352c;
+  font-size: 16px;
+  text-align: left;
+}
+.track-directory-search-result:last-child { border-bottom: 0; }
+.track-directory-search-result:hover { background: #f3f5f3; }
 .track-map-marker {
   display: flex;
   flex-direction: column;
@@ -4333,6 +4441,108 @@ function initialiseDirectoryMap() {
 
   directoryMap = L.map("track-map-view", { zoomControl: false }).setView([51.48, -0.13], 10);
 
+  const TrackSearchControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd: function() {
+      const control = L.DomUtil.create("div", "leaflet-control-track-search");
+      const toggle = L.DomUtil.create("button", "track-directory-search-toggle", control);
+      toggle.type = "button";
+      toggle.title = "Search tracks";
+      toggle.setAttribute("aria-label", "Search tracks");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="2.2"/><path d="m16 16 5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+      const panel = L.DomUtil.create("div", "track-directory-search-panel", control);
+      panel.hidden = true;
+      const searchBar = L.DomUtil.create("div", "track-directory-search-bar", panel);
+      searchBar.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="2.2"/><path d="m16 16 5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+      const input = L.DomUtil.create("input", "track-directory-search-input", searchBar);
+      input.type = "text";
+      input.placeholder = "Search tracks";
+      input.autocomplete = "off";
+      input.setAttribute("aria-label", "Search tracks by name");
+      const close = L.DomUtil.create("button", "track-directory-search-close", searchBar);
+      close.type = "button";
+      close.title = "Close search";
+      close.setAttribute("aria-label", "Close search");
+      close.textContent = "×";
+      const results = L.DomUtil.create("div", "track-directory-search-results", panel);
+
+      const showMessage = message => {
+        results.replaceChildren();
+        const paragraph = document.createElement("p");
+        paragraph.className = "track-directory-search-message";
+        paragraph.textContent = message;
+        results.append(paragraph);
+      };
+
+      const renderResults = () => {
+        const query = input.value.trim();
+        if (Array.from(query).length < 3) {
+          results.replaceChildren();
+          results.hidden = true;
+          return;
+        }
+
+        const normalizedQuery = query.toLocaleLowerCase();
+        const matches = trackData
+          .filter(track => track.name.toLocaleLowerCase().includes(normalizedQuery) && trackMapLocations[track.id])
+          .sort((first, second) => first.name.localeCompare(second.name));
+
+        results.replaceChildren();
+        results.hidden = false;
+        if (!matches.length) {
+          showMessage("No tracks found.");
+          return;
+        }
+
+        matches.forEach(track => {
+          const result = document.createElement("button");
+          result.type = "button";
+          result.className = "track-directory-search-result";
+          result.textContent = track.name;
+          result.addEventListener("click", function(event) {
+            L.DomEvent.stop(event);
+            const location = trackMapLocations[track.id];
+            if (!location) return;
+            directoryMap.flyTo(
+              [location.lat, location.lng],
+              Math.max(directoryMap.getZoom(), 13),
+              { animate: true }
+            );
+            input.blur();
+          });
+          results.append(result);
+        });
+      };
+
+      toggle.addEventListener("click", function(event) {
+        L.DomEvent.stop(event);
+        control.classList.add("is-open");
+        toggle.setAttribute("aria-expanded", "true");
+        panel.hidden = false;
+        renderResults();
+        window.setTimeout(() => input.focus(), 0);
+      });
+      close.addEventListener("click", function(event) {
+        L.DomEvent.stop(event);
+        input.value = "";
+        panel.hidden = true;
+        results.replaceChildren();
+        results.hidden = true;
+        control.classList.remove("is-open");
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.focus();
+      });
+      input.addEventListener("input", renderResults);
+
+      L.DomEvent.disableClickPropagation(control);
+      L.DomEvent.disableScrollPropagation(control);
+      return control;
+    }
+  });
+  new TrackSearchControl().addTo(directoryMap);
+
   const LocateControl = L.Control.extend({
     options: { position: "bottomright" },
     onAdd: function() {
@@ -4380,7 +4590,7 @@ function initialiseDirectoryMap() {
     "Street map": streetLayer,
     "Satellite": satelliteLayer
   }, null, {
-    position: "topright",
+    position: "topleft",
     collapsed: true
   }).addTo(directoryMap);
 
