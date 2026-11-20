@@ -33,7 +33,7 @@ index_v0: Original track directory with visit check-ins and running-distance log
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      background: #565353;
       color: #20352c;
     }
 
@@ -1273,13 +1273,14 @@ body {
   body.mobile-directory-map-active { overflow: hidden; }
   main.container.mobile-directory-map {
     position: fixed;
-    inset: 0 0 calc(66px + env(safe-area-inset-bottom, 0px));
+    inset: 0 0 auto;
     z-index: 1001;
     display: flex;
     flex-direction: column;
     width: 100%;
     max-width: none;
-    height: auto;
+    height: calc(100vh - var(--directory-nav-clearance, 66px));
+    height: calc(100dvh - var(--directory-nav-clearance, 66px));
     margin: 0;
     padding: 24px 0 0;
     overflow: hidden;
@@ -3968,10 +3969,7 @@ function showPage(page) {
 
   if (page === "directory" && directoryView === "map") {
     initialiseDirectoryMap();
-    window.setTimeout(() => {
-      if (directoryMap) directoryMap.invalidateSize();
-      refreshDirectoryMap({ fitBounds: !directoryMapHasInitialFit });
-    }, 100);
+    scheduleDirectoryMapRefresh({ fitBounds: !directoryMapHasInitialFit });
   }
 }
 
@@ -4483,6 +4481,7 @@ closeMapTrackPopup();
 function setDirectoryView(view) {
   directoryView = view === "list" ? "list" : "map";
   const isMap = directoryView === "map";
+  const directoryPanel = document.querySelector(".directory-page");
 
   syncDirectoryMapLayout();
 
@@ -4497,12 +4496,11 @@ function setDirectoryView(view) {
   document.getElementById("map-view-button").classList.toggle("active", isMap);
   document.getElementById("list-view-button").classList.toggle("active", !isMap);
 
-  if (isMap) {
+  const directoryIsVisible = directoryPanel?.classList.contains("active-page") &&
+    !directoryPanel.classList.contains("track-detail-open");
+  if (isMap && directoryIsVisible) {
     initialiseDirectoryMap();
-    window.setTimeout(() => {
-      if (directoryMap) directoryMap.invalidateSize();
-      refreshDirectoryMap({ fitBounds: !directoryMapHasInitialFit });
-    }, 100);
+    scheduleDirectoryMapRefresh({ fitBounds: !directoryMapHasInitialFit });
   }
   if (!isMap) {
   document.getElementById("track-sort-select").value = trackSortOrder;
@@ -4513,20 +4511,69 @@ function setDirectoryView(view) {
 function syncDirectoryMapLayout() {
   const main = document.querySelector("main.container");
   const directory = document.querySelector(".directory-page");
+  const bottomNav = document.querySelector(".bottom-nav");
   const isMobileViewport = window.matchMedia(
     "(max-width: 600px), (max-height: 500px) and (pointer: coarse)"
   ).matches;
   const isFullscreenMap = isMobileViewport && directoryView === "map" &&
     directory?.classList.contains("active-page") &&
     !directory.classList.contains("track-detail-open");
-  if (main) main.classList.toggle("mobile-directory-map", Boolean(isFullscreenMap));
+  if (main) {
+    main.classList.toggle("mobile-directory-map", Boolean(isFullscreenMap));
+    if (bottomNav) {
+      main.style.setProperty(
+        "--directory-nav-clearance",
+        `${bottomNav.getBoundingClientRect().height}px`
+      );
+    }
+  }
   document.body.classList.toggle("mobile-directory-map-active", Boolean(isFullscreenMap));
+}
+
+let directoryMapRefreshTimer = null;
+let directoryMapPendingFitBounds = false;
+function scheduleDirectoryMapRefresh({ fitBounds = false, delay = 100 } = {}) {
+  directoryMapPendingFitBounds = directoryMapPendingFitBounds || fitBounds;
+  if (directoryMapRefreshTimer !== null) window.clearTimeout(directoryMapRefreshTimer);
+  directoryMapRefreshTimer = window.setTimeout(() => {
+    const shouldFitBounds = directoryMapPendingFitBounds;
+    directoryMapPendingFitBounds = false;
+    directoryMapRefreshTimer = null;
+    const directory = document.querySelector(".directory-page");
+    const canRefreshVisibleMap = directoryView === "map" &&
+      directory?.classList.contains("active-page") &&
+      !directory.classList.contains("track-detail-open");
+    if (!directoryMap || !canRefreshVisibleMap) {
+      directoryMapPendingFitBounds = directoryMapPendingFitBounds || shouldFitBounds;
+      return;
+    }
+    directoryMap.invalidateSize();
+    refreshDirectoryMap({ fitBounds: shouldFitBounds });
+  }, delay);
+}
+
+let directoryViewportResizeFrame = 0;
+function handleDirectoryViewportResize() {
+  syncDirectoryMapLayout();
+  const directory = document.querySelector(".directory-page");
+  if (!directoryMap || directoryView !== "map" ||
+      !directory?.classList.contains("active-page") ||
+      directory.classList.contains("track-detail-open") ||
+      directoryViewportResizeFrame) return;
+
+  directoryViewportResizeFrame = window.requestAnimationFrame(() => {
+    directoryViewportResizeFrame = 0;
+    if (directoryMap) directoryMap.invalidateSize();
+  });
 }
 
 function initialiseDirectoryMap() {
   if (directoryMap || !window.L) return;
 
-  directoryMap = L.map("track-map-view", { zoomControl: false }).setView([51.48, -0.13], 10);
+  directoryMap = L.map("track-map-view", {
+    zoomControl: false,
+    trackResize: false
+  }).setView([51.48, -0.13], 10);
 
   const TrackSearchControl = L.Control.extend({
     options: { position: "topleft" },
@@ -5193,7 +5240,8 @@ async function loadTrackCards() {
 }
 
 async function initApp() {
-  window.addEventListener("resize", syncDirectoryMapLayout, { passive: true });
+  window.addEventListener("resize", handleDirectoryViewportResize, { passive: true });
+  window.visualViewport?.addEventListener("resize", handleDirectoryViewportResize, { passive: true });
   document.getElementById("track-search").addEventListener("input", filterTracks);
   document.getElementById("history-type-filter").addEventListener("change", () => { renderHistoryRoleFilters(); renderHistory(); });
   document.getElementById("backup-file").addEventListener("change", importBackup);
