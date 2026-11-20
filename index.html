@@ -1,5 +1,8 @@
 <!--
-index_v15: Loads Track Cards from data/tracks.json with nested data validation; List mode shows standard lanes only while full details retain additional or unavailable lane information.
+index_v16: Adds hour-minute-second training and warm-up durations, track/field result-format and World Athletics scoring-limit validation, 
+           responsive visit-form layouts, and improved map controls, search, and mobile full-screen navigation.
+index_v15: Loads Track Cards from data/tracks.json with nested data validation; List mode shows standard lanes only while full details retain 
+           additional or unavailable lane information.
 index_v14: Redesigns visit records for multiple roles, updated history and distance statistics.
 index_v13: Adds dedicated track-card pages, category-based competition events including Race Walking and 300m, and a trajectory shortcut.
 index_v12: Centralizes record storage, validates backups and events, and safely handles missing times and directory-load failures.
@@ -1839,6 +1842,15 @@ body {
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     }
 
+    function formatVisitDate(date, startTime = "") {
+      const match = typeof date === "string" && date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return date || "Date unknown";
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      if (!months[Number(match[2]) - 1]) return date;
+      const formatted = Number(match[3]) + " " + months[Number(match[2]) - 1] + " " + match[1];
+      return startTime ? formatted + " at " + startTime : formatted;
+    }
+
     const VISIT_ROLES = Object.freeze({
       training: Object.freeze({ participant: "Participant", coach: "Coach" }),
       competition: Object.freeze({ athlete: "Athlete", coach: "Coach", spectator: "Spectator", official: "Official", volunteer: "Volunteer", media: "Media", other_staff: "Other Staff" })
@@ -2313,14 +2325,7 @@ function updateTrackCard(card) {
     .sort()
     .at(-1);
   if (visits.length && latestVisitDate) {
-    const parsedDate = new Date(`${latestVisitDate}T00:00:00`);
-    const formattedDate = Number.isNaN(parsedDate.getTime())
-      ? latestVisitDate
-      : new Intl.DateTimeFormat(undefined, {
-          day: "numeric",
-          month: "short",
-          year: "numeric"
-        }).format(parsedDate);
+    const formattedDate = formatVisitDate(latestVisitDate);
     status.textContent = `Last visited: ${formattedDate}`;
   } else if (visits.length) {
     status.textContent = "Visited";
@@ -3066,8 +3071,8 @@ if (eventStartTimeInput) {
     return;
   }
   const durationSeconds = durationProvided ? Number(hoursText || 0) * 3600 + Number(minutesText || 0) * 60 + Number(secondsText || 0) : null;
-  if (durationSeconds !== null && durationSeconds <= 0) {
-    alert("Training duration must be greater than 00:00:00.");
+  if (durationSeconds !== null && durationSeconds < 60) {
+    alert("Training duration must be at least 1 minute.");
     return;
   }
 
@@ -3329,8 +3334,18 @@ updateAllViews();
     }
 
     function formatTrainingRecordDuration(record) {
-      if (record.durationSeconds != null) return formatDurationSeconds(record.durationSeconds);
-      return record.durationMinutes == null ? "unknown" : formatDuration(record.durationMinutes);
+      if (record.durationSeconds != null) {
+        const seconds = Math.max(0, Math.floor(Number(record.durationSeconds) || 0));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = String(seconds % 60).padStart(2, "0");
+        return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${remainingSeconds}` : `${minutes}:${remainingSeconds}`;
+      }
+      if (record.durationMinutes == null) return "unknown";
+      const totalMinutes = Math.max(0, Math.floor(Number(record.durationMinutes) || 0));
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return hours ? `${hours}:${String(minutes).padStart(2, "0")}:00` : `${minutes}:00`;
     }
 
     function formatWarmupRecordDuration(record) {
@@ -3371,16 +3386,15 @@ updateAllViews();
         const meta = document.createElement("div"); meta.className = "history-meta";
         const visitMode = getVisitMode(record);
         const modeDate = document.createElement("div"); modeDate.className = "history-mode-date";
-        modeDate.textContent = `${visitMode === "training" ? "Training" : "Competition"} · ${record.date || "Date unknown"}`; meta.appendChild(modeDate);
+        modeDate.textContent = `${visitMode === "training" ? "Training" : "Competition"} · ${formatVisitDate(record.date, visitMode === "training" ? record.startTime : "")}`; meta.appendChild(modeDate);
         const roleChips = document.createElement("div"); roleChips.className = "history-role-chips";
         getVisitRoles(record).forEach(role => { const chip = document.createElement("span"); chip.className = "role-chip"; chip.textContent = VISIT_ROLES[visitMode][role] || role; roleChips.appendChild(chip); });
         meta.appendChild(roleChips);
         const lines = [];
 
         if (visitMode === "training") {
-  lines.push(`Start time: ${record.startTime || "unknown"}`);
   lines.push(`Duration: ${formatTrainingRecordDuration(record)}`);
-  if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) lines.push(`Training distance: ${formatDistance(record.distanceMetres)}`);
+  if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
 }
 
         if (visitMode === "competition") {
@@ -3400,7 +3414,7 @@ updateAllViews();
   if (getVisitRoles(record).includes("athlete")) {
     const competitionDistance = recordCompetitionDistance(record);
     lines.push(`Competition distance: ${formatDistance(competitionDistance)}`);
-    lines.push(`Training distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
+    lines.push(`Distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
   }
 }
 
@@ -3532,7 +3546,7 @@ function toggleTrackHistory(button) {
         row.className = "track-history-item";
         const title = document.createElement("strong");
         const mode = getVisitMode(record);
-        title.textContent = `${mode === "training" ? "Training" : "Competition"} · ${record.date || "Date unknown"}`;
+        title.textContent = `${mode === "training" ? "Training" : "Competition"} · ${formatVisitDate(record.date, mode === "training" ? record.startTime : "")}`;
         row.appendChild(title);
         const roleChips = document.createElement("div"); roleChips.className = "history-role-chips";
         getVisitRoles(record).forEach(role => { const chip = document.createElement("span"); chip.className = "role-chip"; chip.textContent = VISIT_ROLES[mode][role] || role; roleChips.appendChild(chip); });
@@ -3540,9 +3554,8 @@ function toggleTrackHistory(button) {
         const detail = document.createElement("p");
         const lines = [];
         if (mode === "training") {
-  lines.push(`Start time: ${record.startTime || "unknown"}`);
   lines.push(`Duration: ${formatTrainingRecordDuration(record)}`);
-  if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) lines.push(`Training distance: ${formatDistance(record.distanceMetres)}`);
+  if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
 }
         if (mode === "competition") {
   lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
@@ -3560,7 +3573,7 @@ function toggleTrackHistory(button) {
   if (getVisitRoles(record).includes("athlete")) {
     const competitionDistance = recordCompetitionDistance(record);
     lines.push(`Competition distance: ${formatDistance(competitionDistance)}`);
-    lines.push(`Training distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
+    lines.push(`Distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
   }
 }
 
