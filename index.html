@@ -1265,6 +1265,11 @@ body {
 }
 
 @media (max-width: 600px), (max-height: 500px) and (pointer: coarse) {
+  #track-map-view .leaflet-control-zoom,
+  .track-location-map .leaflet-control-zoom {
+    display: none !important;
+  }
+
   body.mobile-directory-map-active { overflow: hidden; }
   main.container.mobile-directory-map {
     position: fixed;
@@ -1313,7 +1318,7 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
-    margin: 0 0 6px 6px;
+    margin: 0 0 6px 8px;
     padding: 6px 8px;
     border-radius: 8px;
     background: rgba(255, 255, 255, .9);
