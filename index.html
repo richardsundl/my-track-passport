@@ -556,8 +556,7 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .track-history-filters { margin: 8px 0 12px; }
     .track-history-role-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .track-history-role-filters:empty { display: none; }
-    .track-history-item { border-top: 1px solid #e1e8e2; padding: 10px 0; }
-    .track-history-item:first-child { border-top: 0; }
+    .track-history-item { padding: 14px; }
     .track-history-item p { margin: 4px 0; font-size: 14px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
     .track-history-empty { color: #617168; font-size: 13px; }
     .history-section { margin-top: 28px; }
@@ -582,7 +581,10 @@ index_v0: Original track directory with visit check-ins and running-distance log
 
     .history-record { background: white; border: 1px solid #e1e8e2; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
     .history-record h4 { margin: 0 0 6px; }
+    .history-record[role="button"] { display: block; width: 100%; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .history-record[role="button"]:focus-visible { outline: 3px solid #218c4a; outline-offset: 2px; }
     .history-meta { color: #617168; font-size: 13px; line-height: 1.5; }
+    .history-meeting-name { display: block; }
     .history-actions { margin-top: 8px; }
     .empty-history { color: #617168; font-size: 14px; }
     .track-details .run-section { display: none !important; }
@@ -736,6 +738,17 @@ body {
   font-size: 27px;
   line-height: 1;
 }
+#visit-record-detail-page { display: none; position: fixed; inset: 0; z-index: 2000; overflow-y: auto; box-sizing: border-box; padding: 14px; background: #f4f6f4; }
+#visit-record-detail-page.is-open { display: block; }
+.visit-record-nav { position: sticky; top: -14px; margin: -14px -14px 16px; padding: 10px 14px; }
+.visit-record-menu-button { width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 20px; line-height: 1; }
+.visit-record-menu { position: absolute; right: 14px; top: 58px; z-index: 2; min-width: 140px; padding: 6px; border: 1px solid #dce4dd; border-radius: 10px; background: #fff; box-shadow: 0 6px 20px #0002; }
+.visit-record-menu[hidden] { display: none; }
+.visit-record-menu button { display: block; width: 100%; margin: 0; text-align: left; }
+#visit-record-detail-content { max-width: 760px; margin: 0 auto; }
+.visit-record-detail-card { padding: 16px; border: 1px solid #e1e8e2; border-radius: 12px; background: #fff; }
+.visit-record-detail-card h3 { margin: 0 0 12px; }
+.visit-record-detail-card p { white-space: pre-line; }
 #track-detail-content > .track-card {
   max-width: 900px;
   margin: 0 auto 24px;
@@ -1798,6 +1811,19 @@ body {
       <div id="visit-history-list"></div>
     </section>
 
+    <section id="visit-record-detail-page" aria-label="Visit record details">
+      <div class="track-detail-nav visit-record-nav">
+        <button type="button" class="secondary track-detail-back" aria-label="Back to visit records" onclick="closeVisitRecordDetail()">‹</button>
+        <h2 id="visit-record-detail-title">Training</h2>
+        <button type="button" class="secondary visit-record-menu-button" aria-label="Visit record actions" aria-expanded="false" onclick="toggleVisitRecordMenu()">···</button>
+        <div id="visit-record-menu" class="visit-record-menu" hidden>
+          <button type="button" onclick="editVisitRecordFromDetail()">Edit</button>
+          <button type="button" class="danger" onclick="deleteVisitRecordFromDetail()">Delete</button>
+        </div>
+      </div>
+      <div id="visit-record-detail-content"></div>
+    </section>
+
     <footer>My Track Passport · A personal athletics track collection</footer>
   
 <div id="map-track-popup" class="map-popup-backdrop"
@@ -2576,7 +2602,7 @@ function filterTracks() {
       const card = button && button.closest(".track-card")
         ? button.closest(".track-card")
         : (recordToEdit
-            ? document.querySelector(`#track-list-view > .track-card[data-track-id="${recordToEdit.trackId}"]`)
+            ? (document.querySelector(`#track-list-view > .track-card[data-track-id="${recordToEdit.trackId}"]`) || document.querySelector(`#track-detail-content > .track-card[data-track-id="${recordToEdit.trackId}"]`))
             : null);
       if (!card) return;
      const container = targetContainer || card.querySelector(".visit-form-container");
@@ -2695,6 +2721,7 @@ if (recordToEdit) {
     if (targetContainer) {
       // Visit History page: remove the inline edit form
       container.remove();
+      if (targetContainer.classList.contains("visit-detail-edit-container")) renderVisitRecordDetailPage();
     } else {
       // Track Directory: close the form
       container.style.display = "none";
@@ -3302,6 +3329,7 @@ if (stats) {
 }
 
 updateAllViews();
+if (targetContainer?.classList.contains("visit-detail-edit-container")) renderVisitRecordDetailPage();
 
 
       });
@@ -3381,7 +3409,7 @@ updateAllViews();
       const sorted = [...visitRecords].filter(record => (filter === "all" || getVisitMode(record) === filter) && selectedRoles.every(role => getVisitRoles(record).includes(role))).sort((a,b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || ""));
       if (!sorted.length) { const empty = document.createElement("p"); empty.className = "empty-history"; empty.textContent = "No visits match this filter yet."; list.appendChild(empty); return; }
       sorted.forEach(record => {
-        const item = document.createElement("article"); item.className = "history-record";
+        const item = document.createElement("article"); item.className = "history-record"; item.setAttribute("role", "button"); item.tabIndex = 0;
         const heading = document.createElement("h4"); heading.textContent = trackNameById[record.trackId] || record.trackId; item.appendChild(heading);
         const meta = document.createElement("div"); meta.className = "history-meta";
         const visitMode = getVisitMode(record);
@@ -3398,7 +3426,7 @@ updateAllViews();
 }
 
         if (visitMode === "competition") {
-  lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
+  const meetingName = document.createElement("strong"); meetingName.className = "history-meeting-name"; meetingName.textContent = record.eventName || "Name not recorded"; meta.appendChild(meetingName);
 
 
   (record.events || []).forEach(event =>
@@ -3414,35 +3442,14 @@ updateAllViews();
   if (getVisitRoles(record).includes("athlete")) {
     const competitionDistance = recordCompetitionDistance(record);
     lines.push(`Competition distance: ${formatDistance(competitionDistance)}`);
-    lines.push(`Distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
+    lines.push(`Warm-up Distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
   }
 }
 
         const detailText = document.createElement("span"); detailText.textContent = lines.join("\n"); detailText.style.whiteSpace = "pre-line"; meta.appendChild(detailText); item.appendChild(meta);
-        if (record.notes && record.notes.trim()) {
-         const notes = document.createElement("p");
-         notes.className = "visit-notes-display";
-         notes.textContent = record.notes;
-         item.appendChild(notes);
-        }
-
-        const actions = document.createElement("div"); actions.className = "history-actions";
-        const edit = document.createElement("button"); edit.type = "button"; edit.className = "secondary"; edit.textContent = "Edit visit";
-        edit.addEventListener("click", () => {
-          const existingForm = item.querySelector(".history-edit-container");
-          if (existingForm) {
-            existingForm.remove();
-            return;
-       }
-       const formContainer = document.createElement("div");
-       formContainer.className = "history-edit-container";
-       item.appendChild(formContainer);
-       openVisitForm(edit, record, formContainer);
-       });
-       actions.appendChild(edit);
-        const remove = document.createElement("button"); remove.type = "button"; remove.className = "danger"; remove.textContent = "Delete visit";
-        remove.addEventListener("click", () => { if (confirm("Delete this visit record? This cannot be undone.")) { if (deleteVisitRecord(record.id)) updateAllViews(); } });
-        actions.appendChild(remove); item.appendChild(actions); list.appendChild(item);
+        item.addEventListener("click", () => openVisitRecordDetail(record.id, "history"));
+        item.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openVisitRecordDetail(record.id, "history"); } });
+        list.appendChild(item);
       });
     }
 
@@ -3542,15 +3549,17 @@ function toggleTrackHistory(button) {
       }
 
       records.forEach(record => {
-        const row = document.createElement("div");
-        row.className = "track-history-item";
-        const title = document.createElement("strong");
+        const row = document.createElement("article");
+        row.className = "history-record track-history-item"; row.setAttribute("role", "button"); row.tabIndex = 0;
+        const title = document.createElement("h4");
         const mode = getVisitMode(record);
         title.textContent = `${mode === "training" ? "Training" : "Competition"} · ${formatVisitDate(record.date, mode === "training" ? record.startTime : "")}`;
         row.appendChild(title);
+        const meta = document.createElement("div");
+        meta.className = "history-meta";
         const roleChips = document.createElement("div"); roleChips.className = "history-role-chips";
         getVisitRoles(record).forEach(role => { const chip = document.createElement("span"); chip.className = "role-chip"; chip.textContent = VISIT_ROLES[mode][role] || role; roleChips.appendChild(chip); });
-        row.appendChild(roleChips);
+        meta.appendChild(roleChips);
         const detail = document.createElement("p");
         const lines = [];
         if (mode === "training") {
@@ -3558,7 +3567,7 @@ function toggleTrackHistory(button) {
   if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
 }
         if (mode === "competition") {
-  lines.push(`Meeting: ${record.eventName || "Name not recorded"}`);
+  const meetingName = document.createElement("strong"); meetingName.className = "history-meeting-name"; meetingName.textContent = record.eventName || "Name not recorded"; meta.appendChild(meetingName);
 
 (record.events || []).forEach(event =>
   lines.push(
@@ -3573,38 +3582,99 @@ function toggleTrackHistory(button) {
   if (getVisitRoles(record).includes("athlete")) {
     const competitionDistance = recordCompetitionDistance(record);
     lines.push(`Competition distance: ${formatDistance(competitionDistance)}`);
-    lines.push(`Distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
+    lines.push(`Warm-up Distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`);
   }
 }
 
         detail.textContent = lines.join("\n");
-        row.appendChild(detail);
-        if (record.notes && record.notes.trim()) {
-          const notes = document.createElement("p");
-          notes.className = "visit-notes-display";
-          notes.textContent = record.notes;
-          row.appendChild(notes);
-          }
-
-        const edit = document.createElement("button");
-        edit.type = "button";
-        edit.className = "secondary";
-        edit.textContent = "Edit visit";
-        edit.addEventListener("click", () => openVisitForm(edit, record));
-        row.appendChild(edit);
-
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.className = "danger";
-        remove.textContent = "Delete visit";
-        remove.addEventListener("click", () => {
-          if (!confirm("Delete this visit record? This cannot be undone.")) return;
-          if (deleteVisitRecord(record.id)) updateAllViews();
-        });
-        row.appendChild(remove);
+        meta.appendChild(detail);
+        row.appendChild(meta);
+        row.addEventListener("click", () => openVisitRecordDetail(record.id, "track"));
+        row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openVisitRecordDetail(record.id, "track"); } });
         list.appendChild(row);
       });
     }
+
+let currentVisitDetailId = null;
+let currentVisitDetailOrigin = "history";
+
+function renderVisitRecordDetailPage() {
+  const record = visitRecords.find(item => item.id === currentVisitDetailId);
+  if (!record) return closeVisitRecordDetail();
+  const mode = getVisitMode(record);
+  document.getElementById("visit-record-detail-title").textContent = mode === "training" ? "Training" : "Competition";
+  const content = document.getElementById("visit-record-detail-content");
+  content.replaceChildren();
+  const card = document.createElement("article"); card.className = "visit-record-detail-card";
+  const trackHeading = document.createElement("h3"); trackHeading.textContent = trackNameById[record.trackId] || record.trackId; card.appendChild(trackHeading);
+  const date = document.createElement("p"); date.className = "history-meta";
+  date.textContent = formatVisitDate(record.date, mode === "training" ? record.startTime : ""); card.appendChild(date);
+  if (mode === "training") {
+    const duration = document.createElement("p"); duration.textContent = `Duration: ${formatTrainingRecordDuration(record)}`; card.appendChild(duration);
+    if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) {
+      const distance = document.createElement("p"); distance.textContent = `Distance: ${formatDistance(record.distanceMetres)}`; card.appendChild(distance);
+    }
+  } else {
+    const meeting = document.createElement("strong"); meeting.className = "history-meeting-name"; meeting.textContent = record.eventName || "Name not recorded"; card.appendChild(meeting);
+    (record.events || []).forEach(event => {
+      const line = document.createElement("p"); line.textContent = `${event.startTime || "unknown start time"} - ${event.eventName || "Event not recorded"}: ${event.result || "Result not recorded"}`; card.appendChild(line);
+    });
+    if (record.warmupOnTrack) {
+      const duration = document.createElement("p"); duration.textContent = `On-track warm-up duration: ${formatWarmupRecordDuration(record)}`; card.appendChild(duration);
+    }
+    if (getVisitRoles(record).includes("athlete")) {
+      const distance = document.createElement("p"); distance.textContent = `Competition distance: ${formatDistance(recordCompetitionDistance(record))}`; card.appendChild(distance);
+      const warmup = document.createElement("p"); warmup.textContent = `Warm-up Distance: ${formatDistance(record.warmupOnTrack ? record.warmupDistanceMetres : 0)}`; card.appendChild(warmup);
+    }
+  }
+  const roles = document.createElement("div"); roles.className = "history-role-chips";
+  getVisitRoles(record).forEach(role => { const chip = document.createElement("span"); chip.className = "role-chip"; chip.textContent = VISIT_ROLES[mode][role] || role; roles.appendChild(chip); });
+  card.appendChild(roles);
+  if (record.notes && record.notes.trim()) { const notes = document.createElement("p"); notes.className = "visit-notes-display"; notes.textContent = record.notes; card.appendChild(notes); }
+  content.appendChild(card);
+  document.getElementById("visit-record-menu").hidden = true;
+  document.querySelector(".visit-record-menu-button")?.setAttribute("aria-expanded", "false");
+}
+
+function openVisitRecordDetail(recordId, origin) {
+  currentVisitDetailId = recordId;
+  currentVisitDetailOrigin = origin;
+  document.getElementById("visit-record-detail-page").classList.add("is-open");
+  renderVisitRecordDetailPage();
+  window.scrollTo(0, 0);
+}
+
+function closeVisitRecordDetail() {
+  if (document.querySelector(".visit-detail-edit-container")) { renderVisitRecordDetailPage(); return; }
+  document.getElementById("visit-record-detail-page").classList.remove("is-open");
+  currentVisitDetailId = null;
+}
+
+function toggleVisitRecordMenu() {
+  const menu = document.getElementById("visit-record-menu");
+  menu.hidden = !menu.hidden;
+  document.querySelector(".visit-record-menu-button")?.setAttribute("aria-expanded", String(!menu.hidden));
+}
+
+function editVisitRecordFromDetail() {
+  const record = visitRecords.find(item => item.id === currentVisitDetailId);
+  if (!record) return;
+  const content = document.getElementById("visit-record-detail-content"); content.replaceChildren();
+  const container = document.createElement("div"); container.className = "visit-detail-edit-container"; content.appendChild(container);
+  openVisitForm(null, record, container);
+  document.getElementById("visit-record-detail-title").textContent = "Edit visit";
+  document.getElementById("visit-record-menu").hidden = true;
+}
+
+function deleteVisitRecordFromDetail() {
+  const recordId = currentVisitDetailId;
+  if (!recordId || !confirm("Delete this visit record? This cannot be undone.")) return;
+  if (deleteVisitRecord(recordId)) {
+    document.getElementById("visit-record-detail-page").classList.remove("is-open");
+    currentVisitDetailId = null;
+    updateAllViews();
+  }
+}
 
 function toggleTrackCard(trigger) {
   const card = trigger.closest(".track-card");
