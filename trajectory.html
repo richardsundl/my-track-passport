@@ -72,8 +72,6 @@
     .legend-line { display:inline-block; width:16px; border-top:3px solid #18845a; border-radius:3px; }
     .legend-line.removed { border-color:#bec8c1; }
     .legend-line.counted { border-color:#167ba0; }
-    .legend-area { width:12px;height:10px;border:1px solid #7351b7;background:#9575cd55;border-radius:2px; }
-    .legend-area.second { border-color:#bd6942;background:#e49a6855; }
     .pace-card { display:none; margin-top:18px; padding:20px 22px 14px; background:#fff; border:1px solid var(--line); border-radius:17px; box-shadow:0 5px 22px #20352c08; }
     .pace-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
     .pace-heading { min-width:0; }
@@ -138,7 +136,6 @@
           <div class="trim-heading"><strong>Trim activity</strong><button class="trim-reset" id="trim-reset" type="button">Reset</button></div>
           <div class="trim-control"><label class="trim-label" for="trim-start"><span>New start</span><output id="trim-start-label">—</output></label><input id="trim-start" type="range" min="0" max="1" value="0" aria-label="Move activity start forward"></div>
           <div class="trim-control"><label class="trim-label" for="trim-end"><span>New finish</span><output id="trim-end-label">—</output></label><input id="trim-end" type="range" min="0" max="1" value="1" aria-label="Move activity finish earlier"></div>
-          <div class="trim-legend"><span class="legend-item"><i class="legend-line"></i> Kept</span><span class="legend-item"><i class="legend-line removed"></i> Trimmed away</span><span class="legend-item"><i class="legend-line counted"></i> Counted in either area</span><span class="legend-item"><i class="legend-area"></i> Area 1</span><span class="legend-item"><i class="legend-area second"></i> Area 2</span></div>
         </section>
         <div class="section-title">Activity summary</div>
         <h2 class="activity-title" id="activity-name">No activity loaded</h2><span class="activity-type" id="activity-type" hidden>Activity</span>
@@ -157,7 +154,7 @@
       </aside>
     </section>
     <section class="pace-card" id="pace-card" aria-label="Pace chart">
-      <div class="pace-head"><div class="pace-heading"><h2 class="pace-title">Pace over time</h2><p class="pace-subtitle">5-second rolling pace · elapsed time and distance count only in either shaded area · gaps over 15 seconds count toward elapsed time and break the pace line · hover to follow, click to pin a point.</p></div><div class="pace-tools" aria-label="Horizontal axis zoom"><span class="zoom-label">Time zoom</span><button class="zoom-button" id="zoom-out" type="button" title="Zoom out time axis" aria-label="Zoom out">−</button><button class="zoom-button" id="zoom-in" type="button" title="Zoom in time axis" aria-label="Zoom in">+</button><button class="zoom-button" id="zoom-reset" type="button" title="Reset time zoom" aria-label="Reset zoom">Reset</button></div><div class="pace-readout"><span id="pace-mode">Hover mode</span><span id="pace-time-readout">Hover over chart</span><strong id="pace-value-readout">—</strong><span id="pace-elapsed-readout">Elapsed —</span><span id="pace-distance-readout">Distance —</span></div></div>
+      <div class="pace-head"><div class="pace-heading"><h2 class="pace-title">Pace over time</h2><p class="pace-subtitle">5-second rolling pace · elapsed time and distance count only in the shaded areas · gaps over 15 seconds count toward elapsed time and break the pace line · hover to follow, click to pin a point.</p></div><div class="pace-tools" aria-label="Horizontal axis zoom"><span class="zoom-label">Time zoom</span><button class="zoom-button" id="zoom-out" type="button" title="Zoom out time axis" aria-label="Zoom out">−</button><button class="zoom-button" id="zoom-in" type="button" title="Zoom in time axis" aria-label="Zoom in">+</button><button class="zoom-button" id="zoom-reset" type="button" title="Reset time zoom" aria-label="Reset zoom">Reset</button></div><div class="pace-readout"><span id="pace-mode">Hover mode</span><span id="pace-time-readout">Hover over chart</span><strong id="pace-value-readout">—</strong><span id="pace-elapsed-readout">Elapsed —</span><span id="pace-distance-readout">Distance —</span></div></div>
       <div class="pace-empty" id="pace-empty">This activity has no usable time and distance samples inside the selected area.</div>
       <svg class="pace-plot" id="pace-chart" viewBox="0 0 900 270" role="img" aria-label="Pace over time chart"></svg>
       <div class="time-scroll disabled" id="time-scroll" role="scrollbar" aria-label="Scroll through activity time" aria-controls="pace-chart" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="time-scroll-track"><div class="time-scroll-window" id="time-scroll-window"></div></div></div>
@@ -171,7 +168,9 @@
       let map = null, routeLayer = null, markers = null, areaLayers = [], paceMarker = null, activity = null, trimStart = 0, trimEnd = 0, paceSamples = [], paceSelected = [], pacePinned = false, paceViewStart = null, paceViewEnd = null, paceFullStart = null, paceFullEnd = null;
       const targetAreas = [
         [[51.438953,-0.208870],[51.439060,-0.208484],[51.439063,-0.208060],[51.438110,-0.206784],[51.437910,-0.206891],[51.437665,-0.207084],[51.437588,-0.207449],[51.437529,-0.207759],[51.438573,-0.209266],[51.438800,-0.209049]],
-        [[51.53721091654315,-0.016380914548599714],[51.5370511904792,-0.016804232222744332],[51.536856436327504,-0.017007473019513716],[51.53663891931508,-0.016992896179045737],[51.53634768371021,-0.016576648181442773],[51.53613835230917,-0.014686439376626143],[51.536307807418986,-0.014596026328532742],[51.53640720825667,-0.014483374059379408],[51.53654550880487,-0.01438216530668344],[51.536763162249464,-0.01436908153554333],[51.53700795305665,-0.014492362331106758]]
+        [[51.53721091654315,-0.016380914548599714],[51.5370511904792,-0.016804232222744332],[51.536856436327504,-0.017007473019513716],[51.53663891931508,-0.016992896179045737],[51.53634768371021,-0.016576648181442773],[51.53613835230917,-0.014686439376626143],[51.536307807418986,-0.014596026328532742],[51.53640720825667,-0.014483374059379408],[51.53654550880487,-0.01438216530668344],[51.536763162249464,-0.01436908153554333],[51.53700795305665,-0.014492362331106758]],
+        [[51.430572,-0.147441],[51.430578,-0.147002],[51.4304157,-0.1465908],[51.429292,-0.146055],[51.429112,-0.146281],[51.4289876,-0.1466820],[51.4290177,-0.1471996],[51.429192,-0.147517],[51.430120,-0.147949],[51.430394,-0.147860]],
+        [[51.5197408,-0.0331038],[51.518585,-0.032341],[51.518376,-0.032588],[51.518224,-0.032917],[51.518207,-0.033322],[51.518329,-0.033722],[51.519446,-0.034465],[51.5196473,-0.0342545],[51.5197775,-0.0340104],[51.519823,-0.033569]]
       ];
       const setStatus = (message, error = false) => { $('status').textContent = message; $('status').classList.toggle('error', error); };
       const localName = (node) => node.localName || node.nodeName.split(':').pop();
@@ -243,7 +242,7 @@
         const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19, attribution:'Tiles &copy; Esri &mdash; Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community' });
         street.addTo(map);
         L.control.layers({ 'Street map':street, 'Satellite':satellite }, null, { position:'topright', collapsed:false }).addTo(map);
-        areaLayers=targetAreas.map((area,index)=>L.polygon(area,index===0?{color:'#7351b7',weight:2,opacity:.95,fillColor:'#9575cd',fillOpacity:.24}:{color:'#bd6942',weight:2,opacity:.95,fillColor:'#e49a68',fillOpacity:.24}).addTo(map).bindPopup(`Distance is counted inside area ${index+1}`));
+        areaLayers=targetAreas.map(area=>L.polygon(area,{color:'#7351b7',weight:2,opacity:.95,fillColor:'#9575cd',fillOpacity:.24}).addTo(map).bindPopup('Distance is counted inside this area'));
         map.setView([51.505,-0.09], 12);
       }
       function parseGpx(xml) {
@@ -488,15 +487,15 @@
         $('points-trimmed').textContent=compact(stats.selected.length);
         $('elevation-gain').textContent=stats.elevations.length?`${Math.round(stats.gain)} m`:'Not recorded';
         $('elevation-range').textContent=stats.elevations.length?`${Math.round(Math.min(...stats.elevations))}–${Math.round(Math.max(...stats.elevations))} m`:'Not recorded';
-        $('point-hint').textContent=`${compact(stats.selected.length)} of ${compact(points.length)} points kept · blue route is counted in either area`;
-        $('distance').title=stats.distance>0.1?'Distance travelled inside either shaded area':'No track distance inside either shaded area';
+        $('point-hint').textContent=`${compact(stats.selected.length)} of ${compact(points.length)} points kept · blue route is counted in any area`;
+        $('distance').title=stats.distance>0.1?'Distance travelled inside any shaded area':'No track distance inside any shaded area';
         renderPaceChart(stats.selected);
       }
       function loadFile(file) {
         if (!file) return;
         if (!file.name.toLowerCase().endsWith('.gpx') && file.type && !/xml|gpx/i.test(file.type)) { setStatus('Please choose a .gpx file.',true); return; }
         const reader = new FileReader();
-        reader.onload = () => { try { const data=parseGpx(String(reader.result)); showActivity(data); $('file-name').textContent=file.name; $('file-name').style.display='block'; const hasAreaTrack=selectedStats().distance>0.1; setStatus(hasAreaTrack?'GPX loaded. Distance is counted inside either shaded area.':'No track distance was found inside either shaded area.',!hasAreaTrack); } catch(err) { setStatus(err.message || 'Could not read this GPX file.',true); } };
+        reader.onload = () => { try { const data=parseGpx(String(reader.result)); showActivity(data); $('file-name').textContent=file.name; $('file-name').style.display='block'; const hasAreaTrack=selectedStats().distance>0.1; setStatus(hasAreaTrack?'GPX loaded. Distance is counted inside any shaded area.':'No track distance was found inside any shaded area.',!hasAreaTrack); } catch(err) { setStatus(err.message || 'Could not read this GPX file.',true); } };
         reader.onerror = () => setStatus('The file could not be read by this browser.',true);
         setStatus('Reading GPX file…'); reader.readAsText(file);
       }
