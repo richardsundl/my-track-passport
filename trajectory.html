@@ -51,6 +51,11 @@
     .stat-label { display:block; color:#88948d; font-size:10px; margin-bottom:6px; }
     .stat-value { font-size:15px; font-weight:750; font-variant-numeric:tabular-nums; }
     .stat-value.small { font-size:12px; }
+    .stat-points { grid-column:1 / -1; border-right:0 !important; }
+    .point-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .point-count { padding:8px 6px; border-radius:9px; background:#f7f9f7; text-align:center; }
+    .point-count strong { display:block; font-size:14px; font-variant-numeric:tabular-nums; }
+    .point-count small { display:block; margin-top:3px; color:#88948d; font-size:9px; line-height:1.2; }
     .empty-note { margin:17px 0 0; padding:12px; border-radius:10px; background:#f7f9f7; color:#728077; font-size:11px; line-height:1.55; }
     .status { min-height:18px; margin:12px 0 0; color:#718078; font-size:11px; }
     .status.error { color:#a23b36; }
@@ -68,6 +73,7 @@
     .legend-line.removed { border-color:#bec8c1; }
     .legend-line.counted { border-color:#167ba0; }
     .legend-area { width:12px;height:10px;border:1px solid #7351b7;background:#9575cd55;border-radius:2px; }
+    .legend-area.second { border-color:#bd6942;background:#e49a6855; }
     .pace-card { display:none; margin-top:18px; padding:20px 22px 14px; background:#fff; border:1px solid var(--line); border-radius:17px; box-shadow:0 5px 22px #20352c08; }
     .pace-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
     .pace-heading { min-width:0; }
@@ -132,15 +138,18 @@
           <div class="trim-heading"><strong>Trim activity</strong><button class="trim-reset" id="trim-reset" type="button">Reset</button></div>
           <div class="trim-control"><label class="trim-label" for="trim-start"><span>New start</span><output id="trim-start-label">—</output></label><input id="trim-start" type="range" min="0" max="1" value="0" aria-label="Move activity start forward"></div>
           <div class="trim-control"><label class="trim-label" for="trim-end"><span>New finish</span><output id="trim-end-label">—</output></label><input id="trim-end" type="range" min="0" max="1" value="1" aria-label="Move activity finish earlier"></div>
-          <div class="trim-legend"><span class="legend-item"><i class="legend-line"></i> Kept</span><span class="legend-item"><i class="legend-line removed"></i> Trimmed away</span><span class="legend-item"><i class="legend-line counted"></i> Counted in area</span><span class="legend-item"><i class="legend-area"></i> Counted area</span></div>
+          <div class="trim-legend"><span class="legend-item"><i class="legend-line"></i> Kept</span><span class="legend-item"><i class="legend-line removed"></i> Trimmed away</span><span class="legend-item"><i class="legend-line counted"></i> Counted in either area</span><span class="legend-item"><i class="legend-area"></i> Area 1</span><span class="legend-item"><i class="legend-area second"></i> Area 2</span></div>
         </section>
         <div class="section-title">Activity summary</div>
         <h2 class="activity-title" id="activity-name">No activity loaded</h2><span class="activity-type" id="activity-type" hidden>Activity</span>
         <div class="stats" aria-live="polite">
+          <div class="stat"><span class="stat-label">First area entry</span><span class="stat-value small" id="first-area-entry">—</span></div>
+          <div class="stat"><span class="stat-label">Last area exit</span><span class="stat-value small" id="last-area-exit">—</span></div>
           <div class="stat"><span class="stat-label">Start time</span><span class="stat-value small" id="start-time">—</span></div>
-          <div class="stat"><span class="stat-label">Duration</span><span class="stat-value" id="duration">—</span></div>
+          <div class="stat"><span class="stat-label">Finish time</span><span class="stat-value small" id="finish-time">—</span></div>
+          <div class="stat"><span class="stat-label">Time in areas</span><span class="stat-value" id="duration">—</span></div>
           <div class="stat"><span class="stat-label">Distance in area</span><span class="stat-value" id="distance">—</span></div>
-          <div class="stat"><span class="stat-label">Track points</span><span class="stat-value" id="points">—</span></div>
+          <div class="stat stat-points"><span class="stat-label">Track points</span><div class="point-counts"><span class="point-count"><strong id="points-total">—</strong><small>Total</small></span><span class="point-count"><strong id="points-area">—</strong><small>Initially in areas</small></span><span class="point-count"><strong id="points-trimmed">—</strong><small>Kept after trim</small></span></div></div>
           <div class="stat"><span class="stat-label">Elevation gain</span><span class="stat-value" id="elevation-gain">—</span></div>
           <div class="stat"><span class="stat-label">Elevation range</span><span class="stat-value" id="elevation-range">—</span></div>
         </div>
@@ -148,7 +157,7 @@
       </aside>
     </section>
     <section class="pace-card" id="pace-card" aria-label="Pace chart">
-      <div class="pace-head"><div class="pace-heading"><h2 class="pace-title">Pace over time</h2><p class="pace-subtitle">5-second rolling pace · recording gaps over 15 seconds break the line · hover to follow, click to pin a point.</p></div><div class="pace-tools" aria-label="Horizontal axis zoom"><span class="zoom-label">Time zoom</span><button class="zoom-button" id="zoom-out" type="button" title="Zoom out time axis" aria-label="Zoom out">−</button><button class="zoom-button" id="zoom-in" type="button" title="Zoom in time axis" aria-label="Zoom in">+</button><button class="zoom-button" id="zoom-reset" type="button" title="Reset time zoom" aria-label="Reset zoom">Reset</button></div><div class="pace-readout"><span id="pace-mode">Hover mode</span><span id="pace-time-readout">Hover over chart</span><strong id="pace-value-readout">—</strong><span id="pace-elapsed-readout">Elapsed —</span><span id="pace-distance-readout">Distance —</span></div></div>
+      <div class="pace-head"><div class="pace-heading"><h2 class="pace-title">Pace over time</h2><p class="pace-subtitle">5-second rolling pace · elapsed time and distance count only in either shaded area · gaps over 15 seconds count toward elapsed time and break the pace line · hover to follow, click to pin a point.</p></div><div class="pace-tools" aria-label="Horizontal axis zoom"><span class="zoom-label">Time zoom</span><button class="zoom-button" id="zoom-out" type="button" title="Zoom out time axis" aria-label="Zoom out">−</button><button class="zoom-button" id="zoom-in" type="button" title="Zoom in time axis" aria-label="Zoom in">+</button><button class="zoom-button" id="zoom-reset" type="button" title="Reset time zoom" aria-label="Reset zoom">Reset</button></div><div class="pace-readout"><span id="pace-mode">Hover mode</span><span id="pace-time-readout">Hover over chart</span><strong id="pace-value-readout">—</strong><span id="pace-elapsed-readout">Elapsed —</span><span id="pace-distance-readout">Distance —</span></div></div>
       <div class="pace-empty" id="pace-empty">This activity has no usable time and distance samples inside the selected area.</div>
       <svg class="pace-plot" id="pace-chart" viewBox="0 0 900 270" role="img" aria-label="Pace over time chart"></svg>
       <div class="time-scroll disabled" id="time-scroll" role="scrollbar" aria-label="Scroll through activity time" aria-controls="pace-chart" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="time-scroll-track"><div class="time-scroll-window" id="time-scroll-window"></div></div></div>
@@ -159,8 +168,11 @@
     (() => {
       const $ = (id) => document.getElementById(id);
       const input = $('file-input'), zone = $('drop-zone');
-      let map = null, routeLayer = null, markers = null, areaLayer = null, paceMarker = null, activity = null, trimStart = 0, trimEnd = 0, paceSamples = [], paceSelected = [], pacePinned = false, paceViewStart = null, paceViewEnd = null, paceFullStart = null, paceFullEnd = null;
-      const targetArea = [[51.437373277295215,-0.20769334930205566],[51.43799313032984,-0.20641572329190547],[51.439389957968,-0.2083079589006437],[51.438689484909,-0.2096667859719787]];
+      let map = null, routeLayer = null, markers = null, areaLayers = [], paceMarker = null, activity = null, trimStart = 0, trimEnd = 0, paceSamples = [], paceSelected = [], pacePinned = false, paceViewStart = null, paceViewEnd = null, paceFullStart = null, paceFullEnd = null;
+      const targetAreas = [
+        [[51.438953,-0.208870],[51.439060,-0.208484],[51.439063,-0.208060],[51.438110,-0.206784],[51.437910,-0.206891],[51.437665,-0.207084],[51.437588,-0.207449],[51.437529,-0.207759],[51.438573,-0.209266],[51.438800,-0.209049]],
+        [[51.53721091654315,-0.016380914548599714],[51.5370511904792,-0.016804232222744332],[51.536856436327504,-0.017007473019513716],[51.53663891931508,-0.016992896179045737],[51.53634768371021,-0.016576648181442773],[51.53613835230917,-0.014686439376626143],[51.536307807418986,-0.014596026328532742],[51.53640720825667,-0.014483374059379408],[51.53654550880487,-0.01438216530668344],[51.536763162249464,-0.01436908153554333],[51.53700795305665,-0.014492362331106758]]
+      ];
       const setStatus = (message, error = false) => { $('status').textContent = message; $('status').classList.toggle('error', error); };
       const localName = (node) => node.localName || node.nodeName.split(':').pop();
       const children = (node, name) => Array.from(node.children || []).filter(child => localName(child) === name);
@@ -174,29 +186,47 @@
       };
       const cross = (ax,ay,bx,by) => ax*by-ay*bx;
       function pointInArea(p) {
-        const x=p.lon,y=p.lat; let inside=false;
-        for(let i=0,j=targetArea.length-1;i<targetArea.length;j=i++) {
-          const [yi,xi]=targetArea[i],[yj,xj]=targetArea[j];
-          if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+        const x=p.lon,y=p.lat;
+        for(const polygon of targetAreas) {
+          let inside=false;
+          for(let i=0,j=polygon.length-1;i<polygon.length;j=i++) {
+            const [yi,xi]=polygon[i],[yj,xj]=polygon[j];
+            if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+          }
+          if(inside)return true;
         }
-        return inside;
+        return false;
       }
       function segmentAreaIntervals(a,b) {
         const x=a.lon,y=a.lat, dx=b.lon-a.lon,dy=b.lat-a.lat, cuts=[0,1];
-        for(let i=0;i<targetArea.length;i++) {
-          const c=targetArea[i],d=targetArea[(i+1)%targetArea.length];
-          const sx=d[1]-c[1],sy=d[0]-c[0], denom=cross(dx,dy,sx,sy);
-          if(Math.abs(denom)<1e-14) continue;
-          const t=cross(c[1]-x,c[0]-y,sx,sy)/denom, u=cross(c[1]-x,c[0]-y,dx,dy)/denom;
-          if(t>=0&&t<=1&&u>=0&&u<=1) cuts.push(t);
+        for(const polygon of targetAreas) {
+          for(let i=0;i<polygon.length;i++) {
+            const c=polygon[i],d=polygon[(i+1)%polygon.length];
+            const sx=d[1]-c[1],sy=d[0]-c[0], denom=cross(dx,dy,sx,sy);
+            if(Math.abs(denom)<1e-14) continue;
+            const t=cross(c[1]-x,c[0]-y,sx,sy)/denom, u=cross(c[1]-x,c[0]-y,dx,dy)/denom;
+            if(t>=0&&t<=1&&u>=0&&u<=1) cuts.push(t);
+          }
         }
         cuts.sort((u,v)=>u-v);
         const unique=cuts.filter((t,i)=>!i||Math.abs(t-cuts[i-1])>1e-9), intervals=[];
         for(let i=0;i<unique.length-1;i++) {
           const from=unique[i],to=unique[i+1],mid=(from+to)/2;
-          if(to-from>1e-9&&pointInArea({lat:y+dy*mid,lon:x+dx*mid})) intervals.push([from,to]);
+          if(to-from>1e-9&&pointInArea({lat:y+dy*mid,lon:x+dx*mid})) {
+            if(intervals.length&&Math.abs(intervals[intervals.length-1][1]-from)<1e-9) intervals[intervals.length-1][1]=to;
+            else intervals.push([from,to]);
+          }
         }
         return intervals;
+      }
+      function findAreaWindow(segments,points) {
+        let firstIndex=null,lastIndex=null;
+        for(const segment of segments) for(let i=1;i<segment.length;i++) {
+          if(!segmentAreaIntervals(segment[i-1],segment[i]).length) continue;
+          if(firstIndex===null) firstIndex=segment[i-1].index;
+          lastIndex=segment[i].index;
+        }
+        return firstIndex===null?{start:0,end:Math.max(0,points.length-1),hasArea:false}:{start:firstIndex,end:lastIndex,hasArea:true};
       }
       const interpolatePoint=(a,b,t)=>({lat:a.lat+(b.lat-a.lat)*t,lon:a.lon+(b.lon-a.lon)*t});
       const fmtDuration = ms => { let sec = Math.max(0, Math.floor(ms / 1000)); const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s=sec%60; return h ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s).padStart(2,'0')}s`; };
@@ -213,7 +243,7 @@
         const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19, attribution:'Tiles &copy; Esri &mdash; Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community' });
         street.addTo(map);
         L.control.layers({ 'Street map':street, 'Satellite':satellite }, null, { position:'topright', collapsed:false }).addTo(map);
-        areaLayer=L.polygon(targetArea,{color:'#7351b7',weight:2,opacity:.95,fillColor:'#9575cd',fillOpacity:.24}).addTo(map).bindPopup('Distance is counted inside this area');
+        areaLayers=targetAreas.map((area,index)=>L.polygon(area,index===0?{color:'#7351b7',weight:2,opacity:.95,fillColor:'#9575cd',fillOpacity:.24}:{color:'#bd6942',weight:2,opacity:.95,fillColor:'#e49a68',fillOpacity:.24}).addTo(map).bindPopup(`Distance is counted inside area ${index+1}`));
         map.setView([51.505,-0.09], 12);
       }
       function parseGpx(xml) {
@@ -233,7 +263,9 @@
         const metadata = Array.from(doc.getElementsByTagName('*')).find(el=>localName(el)==='metadata');
         const name = textOf(container,'name') || (metadata && textOf(metadata,'name')) || 'Untitled activity';
         const type = textOf(container,'type');
-        return { name,type,segments:parsed,points,metadataStart:parseTime(metadata && textOf(metadata,'time')) };
+        const areaWindow=findAreaWindow(parsed,points);
+        const initialAreaPointCount=points.filter(pointInArea).length;
+        return { name,type,segments:parsed,points,areaWindow,initialAreaPointCount,metadataStart:parseTime(metadata && textOf(metadata,'time')) };
       }
       function showActivity(data) {
         initMap();
@@ -241,10 +273,13 @@
         $('map-empty')?.remove();
         $('activity-name').textContent=data.name;
         const typeTag=$('activity-type'); typeTag.hidden=!data.type; typeTag.textContent=data.type || 'Activity';
-        activity=data; trimStart=0; trimEnd=data.points.length-1;
+        activity=data; trimStart=data.areaWindow.start; trimEnd=data.areaWindow.end;
+        const originalAreaStats=selectedStats();
+        activity.initialAreaStart=originalAreaStats.start;
+        activity.initialAreaEnd=originalAreaStats.end;
         const startSlider=$('trim-start'), endSlider=$('trim-end');
-        startSlider.min='0'; endSlider.min='1'; startSlider.max=String(trimEnd-1); endSlider.max=String(trimEnd); startSlider.value='0'; endSlider.value=String(trimEnd);
-        $('trim-panel').style.display=data.points.length>1?'block':'none';
+        startSlider.min=String(data.areaWindow.start); endSlider.min=String(data.areaWindow.start+1); startSlider.max=String(Math.max(data.areaWindow.start,trimEnd-1)); endSlider.max=String(data.areaWindow.end); startSlider.value=String(trimStart); endSlider.value=String(trimEnd);
+        $('trim-panel').style.display=trimEnd>trimStart?'block':'none';
         renderTrim(true);
       }
       function pointTime(point) { return point && point.time ? point.time : null; }
@@ -255,24 +290,31 @@
         return null;
       }
       function selectedStats() {
-        const selected=activity.points.slice(trimStart,trimEnd+1); let distance=0,gain=0,areaStart=null,areaEnd=null; const elevations=[];
+        const selected=activity.points.slice(trimStart,trimEnd+1); let distance=0,gain=0,areaStart=null,areaEnd=null,areaStartPoint=null,areaEndPoint=null,durationMs=0; const elevations=[];
         for(let i=0;i<selected.length;i++) {
           const p=selected[i], prev=selected[i-1];
           if(prev && prev.segmentIndex===p.segmentIndex) {
             for(const [from,to] of segmentAreaIntervals(prev,p)) {
-              distance+=haversine(interpolatePoint(prev,p,from),interpolatePoint(prev,p,to));
+              const clippedStart=interpolatePoint(prev,p,from),clippedEnd=interpolatePoint(prev,p,to);
+              distance+=haversine(clippedStart,clippedEnd);
               const intervalStart=timeAtEdge(prev,p,from),intervalEnd=timeAtEdge(prev,p,to);
+              if(!areaStartPoint) areaStartPoint=clippedStart;
+              areaEndPoint=clippedEnd;
               if(!areaStart&&intervalStart) areaStart=intervalStart;
               if(intervalEnd) areaEnd=intervalEnd;
+              if(prev.time&&p.time) {
+                const intervalMs=p.time-prev.time;
+                if(intervalMs>0) durationMs+=intervalMs*(to-from);
+              }
             }
             if(Number.isFinite(prev.ele)&&Number.isFinite(p.ele)&&p.ele-prev.ele>0.8) gain+=p.ele-prev.ele;
           }
           if(Number.isFinite(p.ele)) elevations.push(p.ele);
         }
-        return {selected,distance,gain,elevations,start:areaStart,end:areaEnd};
+        return {selected,distance,gain,elevations,start:areaStart,end:areaEnd,areaStartPoint,areaEndPoint,durationMs};
       }
       function buildPaceSamples(selected) {
-        const chunks=[]; let current=[],cumulativeMeters=0,chartStart=null;
+        const chunks=[]; let current=[],cumulativeMeters=0,cumulativeAreaSeconds=0;
         const finishChunk=()=>{if(current.length)chunks.push(current);current=[];};
         for(let i=1;i<selected.length;i++) {
           const a=selected[i-1],b=selected[i];
@@ -280,18 +322,20 @@
           const intervals=segmentAreaIntervals(a,b);
           if(!intervals.length) { finishChunk(); continue; }
           const elapsedSeconds=a.time&&b.time?(b.time-a.time)/1000:null;
-          const canMeasurePace=elapsedSeconds!==null&&elapsedSeconds>0&&elapsedSeconds<=15;
+          const hasPositiveTime=elapsedSeconds!==null&&elapsedSeconds>0;
+          const canMeasurePace=hasPositiveTime&&elapsedSeconds<=15;
           if(!canMeasurePace) finishChunk();
           for(const [from,to] of intervals) {
             const p1=interpolatePoint(a,b,from),p2=interpolatePoint(a,b,to),meters=haversine(p1,p2);
             cumulativeMeters+=meters;
             const startTime=timeAtEdge(a,b,from),endTime=timeAtEdge(a,b,to);
-            if(!canMeasurePace||!startTime||!endTime) { finishChunk(); continue; }
+            if(!hasPositiveTime||!startTime||!endTime) { finishChunk(); continue; }
             const seconds=(endTime-startTime)/1000;
             if(seconds<=0) { finishChunk(); continue; }
-            if(!chartStart) chartStart=startTime;
+            cumulativeAreaSeconds+=seconds;
+            if(!canMeasurePace) { finishChunk(); continue; }
             if(current.length&&Math.abs(startTime-current[current.length-1].endTime)>2500) finishChunk();
-            current.push({startTime,endTime,seconds,meters,point:p2,distanceMeters:cumulativeMeters,elapsedSeconds:(endTime-chartStart)/1000});
+            current.push({startTime,endTime,seconds,meters,point:p2,distanceMeters:cumulativeMeters,elapsedSeconds:cumulativeAreaSeconds});
             if(to<1-1e-9) finishChunk();
           }
         }
@@ -405,6 +449,7 @@
       function renderTrim(fit=false) {
         if(!activity) return;
         const points=activity.points, start=points[trimStart], end=points[trimEnd];
+        const stats=selectedStats();
         const allLines=activity.segments.map(seg=>L.polyline(seg.map(p=>[p.lat,p.lon]),{color:'#bdc8c0',weight:4,opacity:.75,lineCap:'round',lineJoin:'round'}));
         const keptLines=activity.segments.map(seg=>{
           const kept=seg.filter(p=>p.index>=trimStart&&p.index<=trimEnd);
@@ -424,35 +469,41 @@
         routeLayer=L.featureGroup([...allLines,...keptLines,...countedLines]).addTo(map);
         const startIcon=L.divIcon({className:'',html:'<span style="display:block;width:15px;height:15px;border:3px solid white;border-radius:50%;background:#176b4b;box-shadow:0 1px 5px #0005"></span>',iconSize:[15,15],iconAnchor:[7.5,7.5]});
         const endIcon=L.divIcon({className:'',html:'<span style="display:block;width:15px;height:15px;border:3px solid white;border-radius:50%;background:#d76c4a;box-shadow:0 1px 5px #0005"></span>',iconSize:[15,15],iconAnchor:[7.5,7.5]});
-        markers=L.layerGroup([L.marker([start.lat,start.lon],{icon:startIcon}).bindPopup('New start'),L.marker([end.lat,end.lon],{icon:endIcon}).bindPopup('New finish')]).addTo(map);
-        if(fit) map.fitBounds(L.featureGroup([routeLayer,areaLayer]).getBounds(),{padding:[35,35],maxZoom:16});
-        $('trim-start').max=String(Math.max(0,trimEnd-1)); $('trim-end').min=String(Math.min(points.length-1,trimStart+1));
+        const visibleStart=stats.areaStartPoint||start,visibleEnd=stats.areaEndPoint||end;
+        markers=L.layerGroup([L.marker([visibleStart.lat,visibleStart.lon],{icon:startIcon}).bindPopup('New start'),L.marker([visibleEnd.lat,visibleEnd.lon],{icon:endIcon}).bindPopup('New finish')]).addTo(map);
+        if(fit) map.fitBounds(L.featureGroup([routeLayer,...areaLayers]).getBounds(),{padding:[35,35],maxZoom:16});
+        $('trim-start').min=String(activity.areaWindow.start); $('trim-start').max=String(Math.max(activity.areaWindow.start,trimEnd-1));
+        $('trim-end').min=String(Math.min(activity.areaWindow.end,trimStart+1)); $('trim-end').max=String(activity.areaWindow.end);
         $('trim-start').value=String(trimStart); $('trim-end').value=String(trimEnd);
-        const stats=selectedStats();
         $('trim-start-label').textContent=stats.start?fmtStart(stats.start):`${Math.round(trimStart/(points.length-1)*100)}% · point ${compact(trimStart+1)}`;
         $('trim-end-label').textContent=stats.end?fmtStart(stats.end):`${Math.round(trimEnd/(points.length-1)*100)}% · point ${compact(trimEnd+1)}`;
+        $('first-area-entry').textContent=activity.initialAreaStart?fmtStart(activity.initialAreaStart):'Not recorded';
+        $('last-area-exit').textContent=activity.initialAreaEnd?fmtStart(activity.initialAreaEnd):'Not recorded';
         $('start-time').textContent=stats.start?fmtStart(stats.start):'Not recorded';
-        $('duration').textContent=stats.start&&stats.end?fmtDuration(stats.end-stats.start):'Not recorded';
+        $('finish-time').textContent=stats.end?fmtStart(stats.end):'Not recorded';
+        $('duration').textContent=stats.durationMs>0?fmtElapsed(stats.durationMs):'Not recorded';
         $('distance').textContent=stats.distance>0.1?(stats.distance>=1000?`${(stats.distance/1000).toFixed(2)} km`:`${Math.round(stats.distance)} m`):'0 m';
-        $('points').textContent=compact(stats.selected.length);
+        $('points-total').textContent=compact(points.length);
+        $('points-area').textContent=compact(activity.initialAreaPointCount);
+        $('points-trimmed').textContent=compact(stats.selected.length);
         $('elevation-gain').textContent=stats.elevations.length?`${Math.round(stats.gain)} m`:'Not recorded';
         $('elevation-range').textContent=stats.elevations.length?`${Math.round(Math.min(...stats.elevations))}–${Math.round(Math.max(...stats.elevations))} m`:'Not recorded';
-        $('point-hint').textContent=`${compact(stats.selected.length)} of ${compact(points.length)} points kept · blue route is counted`;
-        $('distance').title=stats.distance>0.1?'Distance travelled inside the shaded area':'No track distance inside the shaded area';
+        $('point-hint').textContent=`${compact(stats.selected.length)} of ${compact(points.length)} points kept · blue route is counted in either area`;
+        $('distance').title=stats.distance>0.1?'Distance travelled inside either shaded area':'No track distance inside either shaded area';
         renderPaceChart(stats.selected);
       }
       function loadFile(file) {
         if (!file) return;
         if (!file.name.toLowerCase().endsWith('.gpx') && file.type && !/xml|gpx/i.test(file.type)) { setStatus('Please choose a .gpx file.',true); return; }
         const reader = new FileReader();
-        reader.onload = () => { try { const data=parseGpx(String(reader.result)); showActivity(data); $('file-name').textContent=file.name; $('file-name').style.display='block'; const hasAreaTrack=selectedStats().distance>0.1; setStatus(hasAreaTrack?'GPX loaded. Distance is counted only inside the shaded area.':'No track distance was found inside the shaded area.',!hasAreaTrack); } catch(err) { setStatus(err.message || 'Could not read this GPX file.',true); } };
+        reader.onload = () => { try { const data=parseGpx(String(reader.result)); showActivity(data); $('file-name').textContent=file.name; $('file-name').style.display='block'; const hasAreaTrack=selectedStats().distance>0.1; setStatus(hasAreaTrack?'GPX loaded. Distance is counted inside either shaded area.':'No track distance was found inside either shaded area.',!hasAreaTrack); } catch(err) { setStatus(err.message || 'Could not read this GPX file.',true); } };
         reader.onerror = () => setStatus('The file could not be read by this browser.',true);
         setStatus('Reading GPX file…'); reader.readAsText(file);
       }
       $('choose-file').addEventListener('click',()=>input.click());
-      $('trim-start').addEventListener('input',e=>{ trimStart=Math.min(Number(e.target.value),trimEnd-1); renderTrim(); });
-      $('trim-end').addEventListener('input',e=>{ trimEnd=Math.max(Number(e.target.value),trimStart+1); renderTrim(); });
-      $('trim-reset').addEventListener('click',()=>{if(!activity)return;trimStart=0;trimEnd=activity.points.length-1;renderTrim();});
+      $('trim-start').addEventListener('input',e=>{ trimStart=Math.max(activity.areaWindow.start,Math.min(Number(e.target.value),trimEnd-1)); renderTrim(); });
+      $('trim-end').addEventListener('input',e=>{ trimEnd=Math.min(activity.areaWindow.end,Math.max(Number(e.target.value),trimStart+1)); renderTrim(); });
+      $('trim-reset').addEventListener('click',()=>{if(!activity)return;trimStart=activity.areaWindow.start;trimEnd=activity.areaWindow.end;renderTrim();});
       $('zoom-in').addEventListener('click',()=>zoomPace(1/1.6));
       $('zoom-out').addEventListener('click',()=>zoomPace(1.6));
       $('zoom-reset').addEventListener('click',()=>{if(!paceSamples.length)return;paceViewStart=paceFullStart;paceViewEnd=paceFullEnd;pacePinned=false;$('pace-mode').textContent='Hover mode';$('pace-time-readout').textContent='Hover over chart';$('pace-value-readout').textContent='—';$('pace-elapsed-readout').textContent='Elapsed —';$('pace-distance-readout').textContent='Distance —';if(paceMarker){map.removeLayer(paceMarker);paceMarker=null;}drawPaceChart();});
