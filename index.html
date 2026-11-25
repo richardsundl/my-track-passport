@@ -3473,6 +3473,7 @@ if (targetContainer?.classList.contains("visit-detail-edit-container")) renderVi
         const deltaY = touch.clientY - touchStartY;
         if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < Math.abs(deltaY)) return;
         item._suppressSwipeClick = true;
+        window.setTimeout(() => { item._suppressSwipeClick = false; }, 500);
         if (deltaX < 0) {
           wrapper.parentElement?.querySelectorAll(".history-swipe-container.is-swiped").forEach(open => open.classList.remove("is-swiped"));
           wrapper.classList.add("is-swiped");
