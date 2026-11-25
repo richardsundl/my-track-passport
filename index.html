@@ -96,6 +96,8 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .role-choice { display: inline-flex !important; align-items: center; gap: 5px; margin: 0 !important; padding: 5px 8px; border-radius: 16px; background: #edf2ee; white-space: nowrap; }
     .role-chip { display: inline-block; margin: 3px 4px 3px 0; padding: 3px 8px; border-radius: 12px; background: #e4eee6; color: #31533d; font-size: 12px; white-space: nowrap; }
     .history-role-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .history-summary-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .history-summary-heading h4 { margin: 0; }
 
     .stat-card {
       background: white;
@@ -583,7 +585,16 @@ index_v0: Original track directory with visit check-ins and running-distance log
     .history-record h4 { margin: 0 0 6px; }
     .history-record[role="button"] { display: block; width: 100%; color: inherit; font: inherit; text-align: left; cursor: pointer; }
     .history-record[role="button"]:focus-visible { outline: 3px solid #218c4a; outline-offset: 2px; }
+    .history-swipe-container { position: relative; overflow: hidden; border-radius: 10px; margin-bottom: 10px; touch-action: pan-y; }
+    .history-swipe-container > .history-record { position: relative; margin: 0; transition: transform .2s ease; }
+    .history-swipe-container.is-swiped > .history-record { transform: translateX(-88px); }
+    .history-swipe-actions { position: absolute; inset: 0 0 0 auto; width: 88px; display: flex; flex-direction: column; background: white; }
+    .history-swipe-actions button { flex: 1; margin: 0; padding: 0 8px; border: 0; border-radius: 0; background: transparent; color: #26352c; box-shadow: none; font: inherit; font-size: 14px; }
+    .history-swipe-actions button:hover { background: transparent; color: #26352c; box-shadow: none; }
     .history-meta { color: #617168; font-size: 13px; line-height: 1.5; }
+    .history-meta > span,
+    .history-meta > .history-meeting-name,
+    .track-history-item .history-meta > p { font-size: 15px; }
     .history-meeting-name { display: block; }
     .history-actions { margin-top: 8px; }
     .empty-history { color: #617168; font-size: 14px; }
@@ -3382,6 +3393,19 @@ if (targetContainer?.classList.contains("visit-detail-edit-container")) renderVi
       return hours ? `${hours}:${String(minutes).padStart(2, "0")}:00` : `${minutes}:00`;
     }
 
+    function formatTrainingRecordSummary(record) {
+      const values = [];
+      if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) {
+        const kilometres = Number(record.distanceMetres) / 1000;
+        const distance = kilometres.toFixed(2).replace(/\.?0+$/, "");
+        values.push(`${distance}km`);
+      }
+      if (record.durationSeconds != null || record.durationMinutes != null) {
+        values.push(formatTrainingRecordDuration(record));
+      }
+      return values.join("\u00a0\u00a0");
+    }
+
     function formatWarmupRecordDuration(record) {
       if (record.warmupDurationSeconds != null) return formatDurationSeconds(record.warmupDurationSeconds);
       return typeof record.warmupDurationMinutes === "number" && Number.isFinite(record.warmupDurationMinutes) && record.warmupDurationMinutes >= 0
@@ -3408,6 +3432,57 @@ if (targetContainer?.classList.contains("visit-detail-edit-container")) renderVi
       });
     }
 
+    function makeSwipeableVisitRecord(item, record, origin) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "history-swipe-container";
+      const actions = document.createElement("div");
+      actions.className = "history-swipe-actions";
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className = "history-swipe-edit";
+      editButton.textContent = "Edit";
+      editButton.setAttribute("aria-label", "Edit visit record");
+      editButton.addEventListener("click", event => {
+        event.stopPropagation();
+        wrapper.classList.remove("is-swiped");
+        openVisitRecordDetail(record.id, origin);
+        editVisitRecordFromDetail();
+      });
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "history-swipe-delete";
+      deleteButton.textContent = "Delete";
+      deleteButton.setAttribute("aria-label", "Delete visit record");
+      deleteButton.addEventListener("click", event => {
+        event.stopPropagation();
+        if (confirm("Delete this visit record? This cannot be undone.") && deleteVisitRecord(record.id)) updateAllViews();
+      });
+      actions.append(editButton, deleteButton);
+      wrapper.append(actions, item);
+
+      let touchStartX = 0;
+      let touchStartY = 0;
+      item.addEventListener("touchstart", event => {
+        const touch = event.changedTouches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+      }, { passive: true });
+      item.addEventListener("touchend", event => {
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+        item._suppressSwipeClick = true;
+        if (deltaX < 0) {
+          wrapper.parentElement?.querySelectorAll(".history-swipe-container.is-swiped").forEach(open => open.classList.remove("is-swiped"));
+          wrapper.classList.add("is-swiped");
+        } else {
+          wrapper.classList.remove("is-swiped");
+        }
+      }, { passive: true });
+      return wrapper;
+    }
+
     function renderHistory() {
       const list = document.getElementById("visit-history-list"); list.replaceChildren();
       const filter = document.querySelector("#history-type-filter input:checked")?.value || "all";
@@ -3419,16 +3494,18 @@ if (targetContainer?.classList.contains("visit-detail-edit-container")) renderVi
         const heading = document.createElement("h4"); heading.textContent = trackNameById[record.trackId] || record.trackId; item.appendChild(heading);
         const meta = document.createElement("div"); meta.className = "history-meta";
         const visitMode = getVisitMode(record);
-        const modeDate = document.createElement("div"); modeDate.className = "history-mode-date";
-        modeDate.textContent = `${visitMode === "training" ? "Training" : "Competition"} · ${formatVisitDate(record.date, visitMode === "training" ? record.startTime : "")}`; meta.appendChild(modeDate);
+        const summaryHeading = document.createElement("div"); summaryHeading.className = "history-summary-heading";
+        const modeHeading = document.createElement("h4"); modeHeading.textContent = visitMode === "training" ? "Training" : "Competition"; summaryHeading.appendChild(modeHeading);
         const roleChips = document.createElement("div"); roleChips.className = "history-role-chips";
         getVisitRoles(record).forEach(role => { const chip = document.createElement("span"); chip.className = "role-chip"; chip.textContent = VISIT_ROLES[visitMode][role] || role; roleChips.appendChild(chip); });
-        meta.appendChild(roleChips);
+        summaryHeading.appendChild(roleChips); meta.appendChild(summaryHeading);
+        const visitDate = document.createElement("div"); visitDate.className = "history-mode-date";
+        visitDate.textContent = formatVisitDate(record.date, visitMode === "training" ? record.startTime : ""); meta.appendChild(visitDate);
         const lines = [];
 
         if (visitMode === "training") {
-  lines.push(`Duration: ${formatTrainingRecordDuration(record)}`);
-  if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+  const summary = formatTrainingRecordSummary(record);
+  if (summary) lines.push(summary);
 }
 
         if (visitMode === "competition") {
@@ -3452,10 +3529,17 @@ if (targetContainer?.classList.contains("visit-detail-edit-container")) renderVi
   }
 }
 
-        const detailText = document.createElement("span"); detailText.textContent = lines.join("\n"); detailText.style.whiteSpace = "pre-line"; meta.appendChild(detailText); item.appendChild(meta);
-        item.addEventListener("click", () => openVisitRecordDetail(record.id, "history"));
+        if (lines.length) {
+          const detailText = document.createElement("span"); detailText.textContent = lines.join("\n"); detailText.style.whiteSpace = "pre-line"; meta.appendChild(detailText);
+        }
+        item.appendChild(meta);
+        item.addEventListener("click", () => {
+          if (item._suppressSwipeClick) { item._suppressSwipeClick = false; return; }
+          if (item.parentElement.classList.contains("is-swiped")) { item.parentElement.classList.remove("is-swiped"); return; }
+          openVisitRecordDetail(record.id, "history");
+        });
         item.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openVisitRecordDetail(record.id, "history"); } });
-        list.appendChild(item);
+        list.appendChild(makeSwipeableVisitRecord(item, record, "history"));
       });
     }
 
@@ -3557,20 +3641,24 @@ function toggleTrackHistory(button) {
       records.forEach(record => {
         const row = document.createElement("article");
         row.className = "history-record track-history-item"; row.setAttribute("role", "button"); row.tabIndex = 0;
-        const title = document.createElement("h4");
         const mode = getVisitMode(record);
-        title.textContent = `${mode === "training" ? "Training" : "Competition"} · ${formatVisitDate(record.date, mode === "training" ? record.startTime : "")}`;
-        row.appendChild(title);
         const meta = document.createElement("div");
         meta.className = "history-meta";
+        const summaryHeading = document.createElement("div"); summaryHeading.className = "history-summary-heading";
+        const title = document.createElement("h4");
+        title.textContent = mode === "training" ? "Training" : "Competition";
+        summaryHeading.appendChild(title);
         const roleChips = document.createElement("div"); roleChips.className = "history-role-chips";
         getVisitRoles(record).forEach(role => { const chip = document.createElement("span"); chip.className = "role-chip"; chip.textContent = VISIT_ROLES[mode][role] || role; roleChips.appendChild(chip); });
-        meta.appendChild(roleChips);
+        summaryHeading.appendChild(roleChips); meta.appendChild(summaryHeading);
+        const visitDate = document.createElement("div"); visitDate.className = "history-mode-date";
+        visitDate.textContent = formatVisitDate(record.date, mode === "training" ? record.startTime : ""); meta.appendChild(visitDate);
+        row.appendChild(meta);
         const detail = document.createElement("p");
         const lines = [];
         if (mode === "training") {
-  lines.push(`Duration: ${formatTrainingRecordDuration(record)}`);
-  if (getVisitRoles(record).includes("participant") && record.distanceMetres != null) lines.push(`Distance: ${formatDistance(record.distanceMetres)}`);
+  const summary = formatTrainingRecordSummary(record);
+  if (summary) lines.push(summary);
 }
         if (mode === "competition") {
   const meetingName = document.createElement("strong"); meetingName.className = "history-meeting-name"; meetingName.textContent = record.eventName || "Name not recorded"; meta.appendChild(meetingName);
@@ -3592,12 +3680,18 @@ function toggleTrackHistory(button) {
   }
 }
 
-        detail.textContent = lines.join("\n");
-        meta.appendChild(detail);
+        if (lines.length) {
+          detail.textContent = lines.join("\n");
+          meta.appendChild(detail);
+        }
         row.appendChild(meta);
-        row.addEventListener("click", () => openVisitRecordDetail(record.id, "track"));
+        row.addEventListener("click", () => {
+          if (row._suppressSwipeClick) { row._suppressSwipeClick = false; return; }
+          if (row.parentElement.classList.contains("is-swiped")) { row.parentElement.classList.remove("is-swiped"); return; }
+          openVisitRecordDetail(record.id, "track");
+        });
         row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openVisitRecordDetail(record.id, "track"); } });
-        list.appendChild(row);
+        list.appendChild(makeSwipeableVisitRecord(row, record, "track"));
       });
     }
 
@@ -3652,7 +3746,14 @@ function openVisitRecordDetail(recordId, origin) {
 
 function closeVisitRecordDetail() {
   if (document.querySelector(".visit-detail-edit-container")) { renderVisitRecordDetailPage(); return; }
+  const record = visitRecords.find(item => item.id === currentVisitDetailId);
   document.getElementById("visit-record-detail-page").classList.remove("is-open");
+  if (currentVisitDetailOrigin === "track" && record) {
+    document.querySelectorAll("#track-list-view > .track-card, #map-track-popup-content > .track-card, #track-detail-content > .track-card")
+      .forEach(card => {
+        if (card.dataset.trackId === record.trackId) renderTrackHistory(card);
+      });
+  }
   currentVisitDetailId = null;
 }
 
